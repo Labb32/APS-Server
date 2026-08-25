@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import shutil
 import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
@@ -20,7 +18,6 @@ POLICIES: dict[OperationName, dict[str, Any]] = {
     OperationName.BRIEFING_PROJECT: {"roles": {"operator", "viewer"}, "write_mode": "none"},
     OperationName.VAULT_AUDIT: {"roles": {"scheduler", "operator"}, "write_mode": "none"},
     OperationName.SERVICE_MAINTENANCE_DUE: {"roles": {"scheduler", "operator", "viewer"}, "write_mode": "none"},
-    OperationName.AGENT_QUERY: {"roles": {"operator"}, "write_mode": "none"},
 }
 
 
@@ -40,8 +37,6 @@ class OperationExecutor:
             return self._service_due(request), [], {}
         if request.operation in {OperationName.BRIEFING_DAILY, OperationName.BRIEFING_PROJECT}:
             return self._briefing(job_id, request)
-        if request.operation == OperationName.AGENT_QUERY:
-            return self._agent_query(job_id, request), [], {}
         raise OperationError(f"unsupported operation: {request.operation}")
 
     def _run(self, command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -138,40 +133,3 @@ class OperationExecutor:
             if not prompt.is_file():
                 issues.append({"path": note.name, "code": "MISSING_BRIEF_PROMPT"})
         return {"active_projects": active_count, "issues": issues, "healthy": not issues}
-
-    def _agent_query(self, job_id: str, request: CreateJobRequest) -> dict[str, Any]:
-        question = str(request.input.get("question", "")).strip()
-        if not question or len(question) > 4000:
-            raise OperationError("agent.query question must contain 1 to 4000 characters")
-        paths = list(request.context.paths)
-        for project_id in request.context.project_ids:
-            paths.extend(self.vault.project_paths(project_id))
-        if not paths:
-            raise OperationError("agent.query requires paths or project_ids")
-
-        work = self.settings.data_path / "work" / job_id / "context"
-        if work.parent.exists():
-            shutil.rmtree(work.parent)
-        self.vault.copy_scope(paths, work)
-        prompt = (
-            "제공된 APS Vault 문서만 읽고 한국어로 답하세요. 외부 경로, Git, 프로젝트 코드는 조사하지 마세요. "
-            "파일을 변경하지 말고 문서에 없는 사실을 추측하지 마세요.\n\n질문: " + question
-        )
-        # Codex CLI는 prompt를 stdin으로 받아야 하므로 별도 호출한다.
-        try:
-            completed = subprocess.run(
-                ["codex.cmd" if os.name == "nt" else "codex", "exec", "--ephemeral", "--sandbox", "read-only", "-"],
-                cwd=work,
-                input=prompt,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=self.settings.job_timeout_seconds,
-                check=False,
-            )
-        except (OSError, subprocess.TimeoutExpired) as error:
-            raise OperationError(str(error)) from error
-        if completed.returncode:
-            raise OperationError((completed.stderr or completed.stdout or "Codex failed")[-4000:])
-        return {"answer": completed.stdout.strip(), "scoped_paths": list(dict.fromkeys(paths))}

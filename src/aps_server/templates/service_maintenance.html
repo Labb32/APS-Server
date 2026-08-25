@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="aps-content-type" content="service_maintenance">
+  <meta name="aps-schema-version" content="{{SCHEMA_VERSION}}">
+  <meta name="aps-vault-commit" content="{{VAULT_COMMIT}}">
+  <meta name="aps-generated-at" content="{{GENERATED_AT}}">
+  <title>{{PAGE_TITLE}}</title>
+  <style>{{APS_CONTENT_CSS}}</style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="masthead">
+      <div><h1>{{PAGE_TITLE}}</h1><p>{{AS_OF_DATE}} 기준 활성 서비스 유지보수 상태 · scope={{SCOPE}}</p></div>
+      <div class="stamp">COMMIT {{VAULT_COMMIT_SHORT}}<br>{{GENERATED_AT}}<br>{{STALE_BADGE_HTML}}</div>
+    </header>
+    <section class="summary-line">
+      <span>Active <b>{{ACTIVE_SERVICE_COUNT}}</b></span><span>Due <b>{{DUE_COUNT}}</b></span>
+      <span>Overdue <b>{{OVERDUE_COUNT}}</b></span><span>Upcoming <b>{{UPCOMING_COUNT}}</b></span><span>Unknown <b>{{UNKNOWN_COUNT}}</b></span>
+    </section>
+    <section aria-labelledby="maintenance-title">
+      <div class="section-head"><h2 id="maintenance-title">Maintenance queue</h2><p>날짜와 지연 일수는 서버가 계산합니다.</p></div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Service</th><th>Status</th><th>Cycle</th><th>Last</th><th>Next due</th><th>Days overdue</th><th>Summary</th></tr></thead>
+          <tbody>{{SERVICE_ROWS_HTML}}</tbody>
+        </table>
+      </div>
+    </section>
+    <section aria-labelledby="issues-title"><div class="section-head"><h2 id="issues-title">Metadata issues</h2><p>{{ISSUE_COUNT}} items</p></div><div>{{ISSUE_ITEMS_HTML}}</div></section>
+    <footer><span>APS SERVER / SERVICE MAINTENANCE</span><span>SHA256 {{SHA256}}</span></footer>
+  </main>
+</body>
+</html>

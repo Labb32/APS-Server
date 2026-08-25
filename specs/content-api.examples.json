@@ -1,0 +1,166 @@
+{
+  "daily_briefing_response": {
+    "schema_version": "1.0",
+    "content_type": "daily_briefing",
+    "generated_at": "2026-08-25T07:00:00+09:00",
+    "vault_commit": "0123456789abcdef0123456789abcdef01234567",
+    "generator_version": "0.1.0",
+    "stale": false,
+    "partial_failure": false,
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "data": {
+      "as_of_date": "2026-08-25",
+      "summary": {"active_projects": 1, "tasks": 2, "decisions": 0, "services_due": 1},
+      "projects": [
+        {
+          "project_id": "aps-server-briefing",
+          "name": "APS 서버 단위 브리핑 운영",
+          "status": "In_Progress",
+          "tier": "T4",
+          "summary": "M1 콘텐츠 API 계약을 구현한다.",
+          "tasks": [
+            {"task_id": "001", "title": "JSON 계약 작성", "completion": "OpenAPI schema 검증 통과", "status": "in_progress"}
+          ],
+          "decisions": [],
+          "issues": []
+        }
+      ],
+      "service_maintenance": []
+    }
+  },
+  "project_catalog_response": {
+    "schema_version": "1.0",
+    "content_type": "project_catalog",
+    "generated_at": "2026-08-25T07:00:00+09:00",
+    "vault_commit": "0123456789abcdef0123456789abcdef01234567",
+    "generator_version": "0.1.0",
+    "stale": false,
+    "partial_failure": false,
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "data": {
+      "projects": [
+        {"project_id": "aps-server-briefing", "name": "APS 서버 단위 브리핑 운영", "status": "In_Progress", "tier": "T4", "briefing_available": true}
+      ]
+    }
+  },
+  "project_briefing_response": {
+    "schema_version": "1.0",
+    "content_type": "project_briefing",
+    "generated_at": "2026-08-25T07:00:00+09:00",
+    "vault_commit": "0123456789abcdef0123456789abcdef01234567",
+    "generator_version": "0.1.0",
+    "stale": false,
+    "partial_failure": false,
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "data": {
+      "project": {
+        "project_id": "aps-server-briefing",
+        "name": "APS 서버 단위 브리핑 운영",
+        "status": "In_Progress",
+        "tier": "T4",
+        "summary": "고정된 콘텐츠 API를 구현한다.",
+        "tasks": [{"task_id": "001", "title": "HTML template 작성", "completion": "고정 template 검증 통과", "status": "pending"}],
+        "decisions": [],
+        "issues": []
+      }
+    }
+  },
+  "service_maintenance_response": {
+    "schema_version": "1.0",
+    "content_type": "service_maintenance",
+    "generated_at": "2026-08-25T07:00:00+09:00",
+    "vault_commit": "0123456789abcdef0123456789abcdef01234567",
+    "generator_version": "0.1.0",
+    "stale": false,
+    "partial_failure": false,
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "data": {
+      "as_of_date": "2026-08-25",
+      "scope": "all",
+      "summary": {"active_services": 1, "due": 0, "overdue": 0, "upcoming": 1, "unknown": 0},
+      "services": [
+        {
+          "service_id": "aps-daily-briefing",
+          "name": "APS 일일 브리핑 및 대시보드",
+          "service_status": "Active",
+          "maintenance_cycle": "매주",
+          "maintenance_interval_days": 7,
+          "last_maintenance": "2026-08-22",
+          "next_maintenance_due": "2026-08-29",
+          "due_status": "upcoming",
+          "days_overdue": 0,
+          "maintenance_summary": "브리핑 실행과 프로젝트 연결 상태를 확인한다.",
+          "issues": []
+        }
+      ]
+    }
+  },
+  "ideas_response": {
+    "schema_version": "1.0",
+    "content_type": "ideas",
+    "generated_at": "2026-08-25T07:00:00+09:00",
+    "vault_commit": "0123456789abcdef0123456789abcdef01234567",
+    "generator_version": "0.1.0",
+    "stale": false,
+    "partial_failure": false,
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "data": {
+      "ideas": [
+        {"idea_id": "idea_01KABC", "content": "프로젝트 문서를 음성으로 브리핑한다.", "tags": ["briefing", "voice"], "status": "organized", "received_at": "2026-08-25T14:00:00+09:00", "cluster_id": "cluster_voice"}
+      ],
+      "clusters": [
+        {"cluster_id": "cluster_voice", "canonical_idea": "음성 기반 프로젝트 브리핑", "member_idea_ids": ["idea_01KABC"], "categories": ["briefing"], "merge_status": "suggested"}
+      ]
+    }
+  },
+  "create_idea_request": {
+    "content": "프로젝트 문서를 음성으로 브리핑하는 기능",
+    "tags": ["briefing", "voice"]
+  },
+  "create_idea_response": {
+    "idea_id": "idea_01KABC",
+    "status": "received",
+    "received_at": "2026-08-25T14:00:00+09:00"
+  },
+  "create_project_request": {
+    "title": "음성 프로젝트 브리핑",
+    "objective": "APS 프로젝트 브리핑을 음성으로 제공한다.",
+    "source_idea_ids": ["idea_01KABC"],
+    "constraints": ["기존 일일 브리핑 결과를 재사용한다."]
+  },
+  "project_confirmation_required_response": {
+    "request_id": "project_request_01KABC",
+    "status": "confirmation_required",
+    "confirmation": {
+      "summary": "새 프로젝트 문서와 ProjectContext 초안을 생성합니다.",
+      "planned_changes": ["프로젝트 문서 초안 생성", "ProjectContext brief와 초기 Task 생성"],
+      "expires_at": "2026-08-25T14:30:00+09:00"
+    }
+  },
+  "confirm_project_response": {
+    "job_id": "job_01KABC",
+    "status": "queued",
+    "operation": "project.propose",
+    "status_url": "/v1/jobs/job_01KABC"
+  },
+  "content_status_response": {
+    "vault_commit": "0123456789abcdef0123456789abcdef01234567",
+    "generated_at": "2026-08-25T07:00:00+09:00",
+    "generator_version": "0.1.0",
+    "stale": false,
+    "content": {
+      "daily_briefing": {"status": "ready", "formats": ["json", "html"], "generated_at": "2026-08-25T07:00:00+09:00", "stale": false, "succeeded": 1, "failed": 0},
+      "project_catalog": {"status": "ready", "formats": ["json", "html"], "generated_at": "2026-08-25T07:00:00+09:00", "stale": false, "succeeded": 1, "failed": 0},
+      "service_maintenance": {"status": "ready", "formats": ["json", "html"], "generated_at": "2026-08-25T07:00:00+09:00", "stale": false, "succeeded": 1, "failed": 0},
+      "ideas": {"status": "ready", "formats": ["json", "html"], "generated_at": "2026-08-25T07:00:00+09:00", "stale": false, "succeeded": 1, "failed": 0}
+    }
+  },
+  "error_response": {
+    "error": {
+      "code": "CONTENT_NOT_GENERATED",
+      "message": "아직 생성된 콘텐츠가 없습니다.",
+      "request_id": "req_01KABC",
+      "details": []
+    }
+  }
+}

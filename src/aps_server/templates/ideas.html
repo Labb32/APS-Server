@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="aps-content-type" content="ideas">
+  <meta name="aps-schema-version" content="{{SCHEMA_VERSION}}">
+  <meta name="aps-vault-commit" content="{{VAULT_COMMIT}}">
+  <meta name="aps-generated-at" content="{{GENERATED_AT}}">
+  <title>{{PAGE_TITLE}}</title>
+  <style>{{APS_CONTENT_CSS}}</style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="masthead">
+      <div><h1>{{PAGE_TITLE}}</h1><p>원본을 보존한 아이디어와 유사 아이디어 묶음</p></div>
+      <div class="stamp">COMMIT {{VAULT_COMMIT_SHORT}}<br>{{GENERATED_AT}}<br>{{STALE_BADGE_HTML}}</div>
+    </header>
+    <section class="summary-line"><span>Ideas <b>{{IDEA_COUNT}}</b></span><span>Clusters <b>{{CLUSTER_COUNT}}</b></span><span>Filter <b>{{STATUS_FILTER}}</b></span></section>
+    <section aria-labelledby="ideas-title"><div class="section-head"><h2 id="ideas-title">Ideas</h2><p>접수 원문은 자동 삭제하거나 덮어쓰지 않습니다.</p></div><div class="grid">{{IDEA_CARDS_HTML}}</div></section>
+    <section aria-labelledby="clusters-title"><div class="section-head"><h2 id="clusters-title">Similar idea clusters</h2><p>병합 결과는 제안 상태입니다.</p></div><div>{{CLUSTER_RECORDS_HTML}}</div></section>
+    <footer><span>APS SERVER / IDEAS</span><span>SHA256 {{SHA256}}</span></footer>
+  </main>
+</body>
+</html>

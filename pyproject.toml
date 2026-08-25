@@ -25,5 +25,8 @@ aps = "aps_server.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+aps_server = ["templates/*.html", "templates/*.css"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

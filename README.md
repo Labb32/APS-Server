@@ -6,6 +6,8 @@ APS Vault는 프로젝트 운영 문서의 원본이고 이 저장소는 API, qu
 
 상세 목표, 범위와 마일스톤은 [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md)를 따른다.
 
+M1 콘텐츠 API의 요청·응답 계약은 [`docs/CONTENT_API.md`](docs/CONTENT_API.md), 기계 판독 가능한 schema는 [`specs/content-api.openapi.json`](specs/content-api.openapi.json)을 따른다. 콘텐츠 endpoint는 사전 생성된 canonical JSON 또는 고정 template HTML을 반환하며 API 조회 중 Codex를 실행하지 않는다.
+
 ## 구조
 
 ```text
@@ -34,7 +36,6 @@ aps-server/
 | `briefing.project` | operator/viewer | 프로젝트 하나의 브리핑 |
 | `vault.audit` | scheduler/operator | 진행 프로젝트 컨텍스트 검사 |
 | `service.maintenance_due` | scheduler/operator/viewer | 서비스 점검 기한 조회 |
-| `agent.query` | operator | 선택한 Vault 문서만 읽는 질문 |
 
 모든 작업은 비동기다. `POST /v1/jobs`의 `job_id`를 `GET /v1/jobs/{job_id}`로 조회한다.
 
@@ -70,7 +71,6 @@ curl -X POST http://127.0.0.1:8080/v1/jobs \
 export APS_API_URL=http://127.0.0.1:8080
 export APS_API_TOKEN="$APS_OPERATOR_TOKEN"
 aps vault-audit --wait
-aps agent-ask --project tauri-markdown-editor --wait "오늘 사용자 결정이 필요한 항목만 알려줘"
 ```
 
 ## 로컬 개발
@@ -90,8 +90,7 @@ python3 -m venv .venv
 ## 보안 경계
 
 - API token은 저장소에 commit하지 않는다.
-- `agent.query`는 선택된 Vault 경로를 격리된 작업 폴더로 복사한 뒤 Codex를 read-only sandbox로 실행한다.
-- 절대경로, `..`, Windows drive 경로와 Vault 밖으로 향하는 symlink는 거부한다.
+- API는 요청자로부터 Vault 경로나 자유 질문 prompt를 받지 않는다.
 - API는 shell 명령과 Codex CLI 인자를 입력으로 받지 않는다.
 - Artifact 다운로드는 해당 Job의 Artifact 디렉터리 안으로 제한한다.
 - Vault 원본을 수정하는 operation은 아직 제공하지 않는다.

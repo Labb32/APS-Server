@@ -59,22 +59,25 @@ def test_auth_and_audit_job(tmp_path):
         assert duplicate.json()["job_id"] == job_id
 
 
-def test_viewer_cannot_run_agent_query(tmp_path):
+def test_agent_query_is_not_an_operation(tmp_path):
     settings = Settings(
         vault_path=make_vault(tmp_path),
         data_path=tmp_path / "data",
         operator_token="operator-secret",
-        viewer_token="viewer-secret",
         sync_before_job=False,
     )
     with TestClient(create_app(settings)) as client:
+        headers = {"Authorization": "Bearer operator-secret"}
+        operations = client.get("/v1/operations", headers=headers).json()["operations"]
+        assert "agent.query" not in {operation["name"] for operation in operations}
+
         response = client.post(
             "/v1/jobs",
-            headers={"Authorization": "Bearer viewer-secret"},
+            headers=headers,
             json={
                 "operation": "agent.query",
                 "input": {"question": "오늘 할 일?"},
                 "context": {"project_ids": ["sample"]},
             },
         )
-        assert response.status_code == 403
+        assert response.status_code == 422

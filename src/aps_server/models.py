@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from pathlib import PurePosixPath
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class OperationName(StrEnum):
@@ -13,7 +12,6 @@ class OperationName(StrEnum):
     BRIEFING_PROJECT = "briefing.project"
     VAULT_AUDIT = "vault.audit"
     SERVICE_MAINTENANCE_DUE = "service.maintenance_due"
-    AGENT_QUERY = "agent.query"
 
 
 class JobStatus(StrEnum):
@@ -27,8 +25,9 @@ class JobStatus(StrEnum):
 
 
 class JobContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     project_ids: list[str] = Field(default_factory=list, max_length=20)
-    paths: list[str] = Field(default_factory=list, max_length=20)
     include_services: bool = True
 
     @field_validator("project_ids")
@@ -38,16 +37,6 @@ class JobContext(BaseModel):
             if not value or len(value) > 64 or any(char not in "abcdefghijklmnopqrstuvwxyz0123456789-" for char in value):
                 raise ValueError(f"invalid project id: {value}")
         return list(dict.fromkeys(values))
-
-    @field_validator("paths")
-    @classmethod
-    def validate_paths(cls, values: list[str]) -> list[str]:
-        for value in values:
-            path = PurePosixPath(value)
-            if not value or "\\" in value or path.is_absolute() or ".." in path.parts or ":" in value:
-                raise ValueError(f"path must be relative to the Vault: {value}")
-        return list(dict.fromkeys(values))
-
 
 class CreateJobRequest(BaseModel):
     operation: OperationName

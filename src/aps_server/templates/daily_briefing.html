@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="aps-content-type" content="daily_briefing">
+  <meta name="aps-schema-version" content="{{SCHEMA_VERSION}}">
+  <meta name="aps-vault-commit" content="{{VAULT_COMMIT}}">
+  <meta name="aps-generated-at" content="{{GENERATED_AT}}">
+  <title>{{PAGE_TITLE}}</title>
+  <style>{{APS_CONTENT_CSS}}</style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="masthead">
+      <div><h1>{{PAGE_TITLE}}</h1><p>{{AS_OF_DATE}} 기준 오늘의 프로젝트 작업과 서비스 점검</p></div>
+      <div class="stamp">COMMIT {{VAULT_COMMIT_SHORT}}<br>{{GENERATED_AT}}<br>{{STALE_BADGE_HTML}}</div>
+    </header>
+    <section class="summary-line" aria-label="요약">
+      <span>Projects <b>{{ACTIVE_PROJECT_COUNT}}</b></span>
+      <span>Tasks <b>{{TASK_COUNT}}</b></span>
+      <span>Decisions <b>{{DECISION_COUNT}}</b></span>
+      <span>Services due <b>{{SERVICE_DUE_COUNT}}</b></span>
+    </section>
+    <section aria-labelledby="projects-title">
+      <div class="section-head"><h2 id="projects-title">Projects</h2><p>{{PROJECT_RESULT_SUMMARY}}</p></div>
+      <div>{{PROJECT_RECORDS_HTML}}</div>
+    </section>
+    <section aria-labelledby="services-title">
+      <div class="section-head"><h2 id="services-title">Service maintenance</h2><p>{{SERVICE_RESULT_SUMMARY}}</p></div>
+      <div class="table-scroll">
+        <table><thead><tr><th>Service</th><th>Status</th><th>Last</th><th>Next due</th><th>Summary</th></tr></thead><tbody>{{SERVICE_ROWS_HTML}}</tbody></table>
+      </div>
+    </section>
+    <footer><span>APS SERVER / DAILY BRIEFING</span><span>SHA256 {{SHA256}}</span></footer>
+  </main>
+</body>
+</html>

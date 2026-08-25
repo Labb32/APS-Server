@@ -105,7 +105,6 @@ Validated JSON / HTML / logs
 | `briefing.project` | 특정 프로젝트 브리핑 |
 | `vault.audit` | metadata와 프로젝트 컨텍스트 누락 점검 |
 | `service.maintenance_due` | 기한이 된 서비스 점검 조회 |
-| `agent.query` | 선택한 Vault 문서만 읽는 자유 질문 |
 
 모든 장기 작업은 `202 Accepted`와 `job_id`를 반환하고 별도 조회로 완료 상태를 확인한다. 동일 요청의 중복 실행은 `Idempotency-Key`로 방지한다.
 
@@ -114,9 +113,7 @@ Validated JSON / HTML / logs
 - API token과 Codex 인증정보는 image나 Git에 포함하지 않는다.
 - token은 operator, viewer, scheduler별로 분리한다.
 - Vault clone, Job data와 Codex home은 각각 별도 volume으로 제공한다.
-- `agent.query`는 허용된 Vault 경로를 Job 전용 디렉터리에 복사한 뒤 그 디렉터리에서만 Codex를 실행한다.
-- 절대경로, `..`, Windows drive 경로와 Vault 밖 symlink는 거부한다.
-- 사용자 질문과 문서 원문은 기본 감사 로그에 기록하지 않는다.
+- API는 요청자로부터 Vault 경로, 자유 질문 prompt와 문서 원문을 받지 않는다.
 - 외부 접근은 reverse proxy의 TLS와 추가 인증을 거친다.
 
 ## 8. 배포 구조
@@ -149,7 +146,7 @@ Validated JSON / HTML / logs
 - [ ] 서버 Codex 비대화형 인증 volume
 - [ ] 동기화가 활성화된 `vault.audit` Job
 - [ ] 실제 프로젝트의 `briefing.project` HTML Artifact
-- [ ] 격리된 `agent.query` 범위 검증
+- [ ] 고정 schema JSON과 고정 template HTML 콘텐츠 조회 검증
 - [ ] 재시작 시 실행 중 Job 복구 정책 결정
 
 ### M3. 스케줄과 결과 배포

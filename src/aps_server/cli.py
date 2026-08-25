@@ -44,11 +44,6 @@ def main() -> int:
     project.add_argument("--wait", action="store_true")
     audit = subparsers.add_parser("vault-audit")
     audit.add_argument("--wait", action="store_true")
-    ask = subparsers.add_parser("agent-ask")
-    ask.add_argument("question")
-    ask.add_argument("--project", action="append", default=[])
-    ask.add_argument("--path", action="append", default=[])
-    ask.add_argument("--wait", action="store_true")
     get = subparsers.add_parser("jobs-get")
     get.add_argument("job_id")
     args = parser.parse_args()
@@ -60,7 +55,6 @@ def main() -> int:
             "briefing-daily": ("briefing.daily", {"format": args.format}, {}),
             "briefing-project": ("briefing.project", {"format": args.format}, {"project_ids": [args.project_id]}),
             "vault-audit": ("vault.audit", {}, {}),
-            "agent-ask": ("agent.query", {"question": args.question}, {"project_ids": args.project, "paths": args.path}),
         }
         operation, inputs, context = operations[args.command]
         result = request("POST", "/v1/jobs", {"operation": operation, "input": inputs, "context": context})

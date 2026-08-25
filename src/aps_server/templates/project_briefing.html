@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="aps-content-type" content="project_briefing">
+  <meta name="aps-schema-version" content="{{SCHEMA_VERSION}}">
+  <meta name="aps-vault-commit" content="{{VAULT_COMMIT}}">
+  <meta name="aps-generated-at" content="{{GENERATED_AT}}">
+  <title>{{PAGE_TITLE}}</title>
+  <style>{{APS_CONTENT_CSS}}</style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="masthead">
+      <div><h1>{{PROJECT_NAME}}</h1><p><span class="mono">{{PROJECT_ID}}</span> · {{PROJECT_STATUS}} · {{PROJECT_TIER}}</p></div>
+      <div class="stamp">COMMIT {{VAULT_COMMIT_SHORT}}<br>{{GENERATED_AT}}<br>{{STALE_BADGE_HTML}}</div>
+    </header>
+    <section class="card" aria-labelledby="summary-title">
+      <h2 id="summary-title">Current summary</h2><p>{{PROJECT_SUMMARY}}</p>
+    </section>
+    <div class="grid" style="margin-top:12px">
+      <section class="card" aria-labelledby="tasks-title"><h2 id="tasks-title">Tasks</h2><ol>{{TASK_ITEMS_HTML}}</ol></section>
+      <section class="card" aria-labelledby="decisions-title"><h2 id="decisions-title">Decisions</h2><ul>{{DECISION_ITEMS_HTML}}</ul></section>
+    </div>
+    <section aria-labelledby="issues-title">
+      <div class="section-head"><h2 id="issues-title">Issues</h2><p>{{ISSUE_COUNT}} items</p></div>
+      <div>{{ISSUE_ITEMS_HTML}}</div>
+    </section>
+    <footer><span>APS SERVER / PROJECT BRIEFING</span><span>SHA256 {{SHA256}}</span></footer>
+  </main>
+</body>
+</html>

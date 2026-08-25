@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="aps-content-type" content="project_catalog">
+  <meta name="aps-schema-version" content="{{SCHEMA_VERSION}}">
+  <meta name="aps-vault-commit" content="{{VAULT_COMMIT}}">
+  <meta name="aps-generated-at" content="{{GENERATED_AT}}">
+  <title>{{PAGE_TITLE}}</title>
+  <style>{{APS_CONTENT_CSS}}</style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="masthead">
+      <div><h1>{{PAGE_TITLE}}</h1><p>API에서 사용할 수 있는 논리적 프로젝트 목록</p></div>
+      <div class="stamp">COMMIT {{VAULT_COMMIT_SHORT}}<br>{{GENERATED_AT}}<br>{{STALE_BADGE_HTML}}</div>
+    </header>
+    <section class="summary-line"><span>Projects <b>{{PROJECT_COUNT}}</b></span><span>Briefings <b>{{BRIEFING_COUNT}}</b></span></section>
+    <section aria-labelledby="catalog-title">
+      <div class="section-head"><h2 id="catalog-title">Project catalog</h2><p>Vault 내부 경로는 표시하지 않습니다.</p></div>
+      <div class="table-scroll">
+        <table><thead><tr><th>Project ID</th><th>Name</th><th>Status</th><th>Tier</th><th>Briefing</th></tr></thead><tbody>{{PROJECT_ROWS_HTML}}</tbody></table>
+      </div>
+    </section>
+    <footer><span>APS SERVER / PROJECT CATALOG</span><span>SHA256 {{SHA256}}</span></footer>
+  </main>
+</body>
+</html>
