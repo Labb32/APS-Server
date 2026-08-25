@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aps-server"
+version = "0.1.0"
+description = "Containerized APS Vault automation and agent job API"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi==0.141.1",
+  "pydantic-settings==2.15.0",
+  "uvicorn==0.52.4",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx2==2.10.0",
+  "pytest==9.1.1",
+]
+
+[project.scripts]
+aps = "aps_server.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
