@@ -7,20 +7,30 @@ services:
     image: aps-server:local
     restart: unless-stopped
     env_file:
-      - path: .env
+      - path: "${APS_ENV_FILE:-.env}"
         required: false
     environment:
       APS_VAULT_PATH: /vault
       APS_DATA_PATH: /data
+      APS_EXTENSIONS_PATH: /data/extensions
+      APS_OFFICIAL_EXTENSIONS_PATH: /opt/aps/official-extensions
+      APS_VAULT_TEMPLATE_PATH: /opt/aps/vault-template
+      APS_SCHEDULES_PATH: "${APS_SCHEDULES_PATH:-/config/schedules.json}"
+      APS_SCHEDULE_OVERRIDES_PATH: "${APS_SCHEDULE_OVERRIDES_PATH:-/config/schedule-overrides.json}"
+      APS_HTTP_HOST: 0.0.0.0
+      APS_HTTP_PORT: "${APS_HTTP_PORT:-8080}"
       CODEX_HOME: /codex-home
     ports:
-      - "${APS_BIND_HOST:-127.0.0.1}:${APS_BIND_PORT:-8080}:8080"
+      - "${APS_BIND_HOST:-127.0.0.1}:${APS_BIND_PORT:-8080}:${APS_HTTP_PORT:-8080}"
+    expose:
+      - "${APS_HTTP_PORT:-8080}"
     volumes:
-      - "${APS_VAULT_HOST_PATH:?set APS_VAULT_HOST_PATH}:/vault"
+      - "${APS_VAULT_MOUNT:-aps-vault}:/vault"
       - aps-data:/data
-      - "${APS_CODEX_HOME:?set APS_CODEX_HOME}:/codex-home"
+      - "${APS_CODEX_HOME_MOUNT:-aps-codex-home}:/codex-home"
+      - "${APS_CONFIG_MOUNT:-./deploy/config}:/config:ro"
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/live', timeout=3)"]
+      test: ["CMD", "python3", "-c", "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('APS_HTTP_PORT', '8080') + '/health/live', timeout=3)"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -29,4 +39,6 @@ services:
       - no-new-privileges:true
 
 volumes:
+  aps-vault:
   aps-data:
+  aps-codex-home:

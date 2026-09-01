@@ -1,0 +1,6 @@
+/00_Inbox/*
+!/00_Inbox/.gitkeep
+
+.aps.local.json
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json

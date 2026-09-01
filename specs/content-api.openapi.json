@@ -3,7 +3,7 @@
   "info": {
     "title": "APS Server Content API",
     "version": "0.1.0",
-    "description": "Single-owner APS content API. Content GET endpoints return pre-generated JSON or fixed-template HTML and never invoke Codex during the request."
+    "description": "APS Server API for materialized results generated from a connected APS Vault and its brief extension. Content GET endpoints never invoke Codex during the request."
   },
   "servers": [{"url": "/"}],
   "security": [{"bearerAuth": []}],
@@ -93,11 +93,11 @@
     "/v1/content/ideas": {
       "get": {
         "operationId": "getIdeas",
-        "summary": "Get staged and organized ideas",
+        "summary": "Get normalized ideas and suggested Idea sets",
         "parameters": [
           {"$ref": "#/components/parameters/Format"},
           {"$ref": "#/components/parameters/IdeaStatus"},
-          {"name": "cluster_id", "in": "query", "required": false, "schema": {"type": "string", "maxLength": 80}}
+          {"name": "idea_set_id", "in": "query", "required": false, "schema": {"type": "string", "pattern": "^idea_set_[A-Z0-9]+$"}}
         ],
         "responses": {
           "200": {
@@ -114,59 +114,72 @@
       }
     },
     "/v1/ideas": {
-      "post": {
-        "operationId": "createIdea",
-        "summary": "Stage an idea without invoking Codex",
-        "requestBody": {
-          "required": true,
-          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateIdeaRequest"}}}
-        },
+      "get": {
+        "operationId": "listIdeas",
+        "summary": "List normalized Ideas",
+        "parameters": [
+          {"$ref": "#/components/parameters/IdeaStatus"},
+          {"$ref": "#/components/parameters/IdeaSetIdQuery"}
+        ],
         "responses": {
-          "201": {
-            "description": "Idea received in staging",
-            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateIdeaResponse"}}}
-          },
-          "400": {"$ref": "#/components/responses/BadRequest"},
+          "200": {"description": "Filtered Ideas and Idea sets", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IdeasResponse"}}}},
           "401": {"$ref": "#/components/responses/Unauthorized"},
           "403": {"$ref": "#/components/responses/Forbidden"},
-          "429": {"$ref": "#/components/responses/RateLimited"}
+          "404": {"$ref": "#/components/responses/ContentNotGenerated"}
         }
       }
     },
-    "/v1/project-requests": {
+    "/v1/ideas/search": {
       "post": {
-        "operationId": "createProjectRequest",
-        "summary": "Create a project proposal request without invoking Codex",
-        "requestBody": {
-          "required": true,
-          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateProjectRequest"}}}
-        },
+        "operationId": "searchIdeas",
+        "summary": "Search Ideas using the Core lexical index",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IdeaSearchRequest"}}}},
         "responses": {
-          "201": {
-            "description": "Project request awaiting confirmation",
-            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ProjectConfirmationRequired"}}}
-          },
-          "400": {"$ref": "#/components/responses/BadRequest"},
+          "200": {"description": "Ranked lexical matches", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IdeaSearchResponse"}}}},
           "401": {"$ref": "#/components/responses/Unauthorized"},
           "403": {"$ref": "#/components/responses/Forbidden"},
-          "429": {"$ref": "#/components/responses/RateLimited"}
+          "404": {"$ref": "#/components/responses/ContentNotGenerated"}
         }
       }
     },
-    "/v1/project-requests/{request_id}/confirm": {
-      "post": {
-        "operationId": "confirmProjectRequest",
-        "summary": "Confirm a project request and queue project.propose",
-        "parameters": [{"$ref": "#/components/parameters/RequestId"}],
+    "/v1/ideas/{idea_id}": {
+      "get": {
+        "operationId": "getIdea",
+        "summary": "Get one Idea",
+        "parameters": [{"$ref": "#/components/parameters/IdeaId"}],
         "responses": {
-          "202": {
-            "description": "project.propose Job accepted",
-            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/JobAccepted"}}}
-          },
+          "200": {"description": "Idea detail", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IdeaDetailResponse"}}}},
           "401": {"$ref": "#/components/responses/Unauthorized"},
           "403": {"$ref": "#/components/responses/Forbidden"},
-          "404": {"$ref": "#/components/responses/NotFound"},
-          "409": {"$ref": "#/components/responses/Conflict"}
+          "404": {"$ref": "#/components/responses/NotFound"}
+        }
+      }
+    },
+    "/v1/ideas/{idea_id}/similar": {
+      "get": {
+        "operationId": "getSimilarIdeas",
+        "summary": "Get lexical similarity candidates for one Idea",
+        "parameters": [
+          {"$ref": "#/components/parameters/IdeaId"},
+          {"$ref": "#/components/parameters/SearchLimit"}
+        ],
+        "responses": {
+          "200": {"description": "Ranked similar Ideas", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IdeaSimilarResponse"}}}},
+          "401": {"$ref": "#/components/responses/Unauthorized"},
+          "403": {"$ref": "#/components/responses/Forbidden"},
+          "404": {"$ref": "#/components/responses/NotFound"}
+        }
+      }
+    },
+    "/v1/idea-sets/recommended": {
+      "get": {
+        "operationId": "getRecommendedIdeaSet",
+        "summary": "Get the highest priority suggested Idea set",
+        "responses": {
+          "200": {"description": "Recommended Idea set", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/RecommendedIdeaSetResponse"}}}},
+          "401": {"$ref": "#/components/responses/Unauthorized"},
+          "403": {"$ref": "#/components/responses/Forbidden"},
+          "404": {"$ref": "#/components/responses/NotFound"}
         }
       }
     },
@@ -202,12 +215,6 @@
         "required": true,
         "schema": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"}
       },
-      "RequestId": {
-        "name": "request_id",
-        "in": "path",
-        "required": true,
-        "schema": {"type": "string", "pattern": "^project_request_[A-Z0-9]+$"}
-      },
       "MaintenanceScope": {
         "name": "scope",
         "in": "query",
@@ -218,7 +225,25 @@
         "name": "status",
         "in": "query",
         "required": false,
-        "schema": {"type": "string", "enum": ["received", "organized", "proposed", "published", "all"], "default": "all"}
+        "schema": {"type": "string", "enum": ["inbox", "incubator", "organized", "proposed", "published", "archived", "all"], "default": "all"}
+      },
+      "IdeaId": {
+        "name": "idea_id",
+        "in": "path",
+        "required": true,
+        "schema": {"type": "string", "pattern": "^idea_[A-Z0-9]+$"}
+      },
+      "IdeaSetIdQuery": {
+        "name": "idea_set_id",
+        "in": "query",
+        "required": false,
+        "schema": {"type": "string", "pattern": "^idea_set_[A-Z0-9]+$"}
+      },
+      "SearchLimit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {"type": "integer", "minimum": 1, "maximum": 50, "default": 5}
       }
     },
     "schemas": {
@@ -385,35 +410,41 @@
       "IdeaItem": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["idea_id", "content", "tags", "status", "received_at"],
+        "required": ["idea_id", "title", "keywords", "summary", "status", "idea_set_ids", "updated_at"],
         "properties": {
           "idea_id": {"type": "string", "pattern": "^idea_[A-Z0-9]+$"},
-          "content": {"type": "string", "minLength": 1, "maxLength": 8000},
-          "tags": {"type": "array", "maxItems": 20, "items": {"type": "string", "maxLength": 50}},
-          "status": {"type": "string", "enum": ["received", "organized", "proposed", "published"]},
-          "received_at": {"type": "string", "format": "date-time"},
-          "cluster_id": {"type": ["string", "null"], "maxLength": 80}
+          "title": {"type": "string", "minLength": 1, "maxLength": 200},
+          "keywords": {"type": "array", "maxItems": 20, "items": {"type": "string", "minLength": 1, "maxLength": 80}},
+          "summary": {"type": "string", "minLength": 1, "maxLength": 2000},
+          "status": {"type": "string", "enum": ["inbox", "incubator", "organized", "proposed", "published", "archived"]},
+          "idea_set_ids": {"type": "array", "maxItems": 20, "items": {"type": "string", "pattern": "^idea_set_[A-Z0-9]+$"}},
+          "updated_at": {"type": "string", "format": "date-time"},
+          "storage": {"type": "string", "enum": ["vault", "inbox"], "default": "vault"},
+          "commit_status": {"type": "string", "enum": ["committed", "pending"], "default": "committed"}
         }
       },
-      "IdeaCluster": {
+      "IdeaSet": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["cluster_id", "canonical_idea", "member_idea_ids", "categories", "merge_status"],
+        "required": ["idea_set_id", "title", "keywords", "summary", "status", "member_idea_ids"],
         "properties": {
-          "cluster_id": {"type": "string", "maxLength": 80},
-          "canonical_idea": {"type": "string", "maxLength": 4000},
-          "member_idea_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
-          "categories": {"type": "array", "items": {"type": "string", "maxLength": 80}},
-          "merge_status": {"type": "string", "enum": ["suggested", "approved", "rejected"]}
+          "idea_set_id": {"type": "string", "pattern": "^idea_set_[A-Z0-9]+$"},
+          "title": {"type": "string", "minLength": 1, "maxLength": 200},
+          "keywords": {"type": "array", "maxItems": 20, "items": {"type": "string", "minLength": 1, "maxLength": 80}},
+          "summary": {"type": "string", "minLength": 1, "maxLength": 2000},
+          "status": {"type": "string", "enum": ["suggested", "approved", "rejected", "archived"]},
+          "member_idea_ids": {"type": "array", "minItems": 1, "maxItems": 100, "items": {"type": "string", "pattern": "^idea_[A-Z0-9]+$"}},
+          "storage": {"type": "string", "enum": ["vault", "inbox"], "default": "vault"},
+          "commit_status": {"type": "string", "enum": ["committed", "pending"], "default": "committed"}
         }
       },
       "IdeasData": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["ideas", "clusters"],
+        "required": ["ideas", "idea_sets"],
         "properties": {
           "ideas": {"type": "array", "items": {"$ref": "#/components/schemas/IdeaItem"}},
-          "clusters": {"type": "array", "items": {"$ref": "#/components/schemas/IdeaCluster"}}
+          "idea_sets": {"type": "array", "items": {"$ref": "#/components/schemas/IdeaSet"}}
         }
       },
       "IdeasResponse": {
@@ -422,64 +453,68 @@
           {"type": "object", "properties": {"content_type": {"const": "ideas"}, "data": {"$ref": "#/components/schemas/IdeasData"}}}
         ]
       },
-      "CreateIdeaRequest": {
+      "IdeaSearchRequest": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["content"],
+        "required": ["query"],
         "properties": {
-          "content": {"type": "string", "minLength": 1, "maxLength": 8000},
-          "tags": {"type": "array", "maxItems": 20, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 50}}
+          "query": {"type": "string", "minLength": 1, "maxLength": 200},
+          "limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 10}
         }
       },
-      "CreateIdeaResponse": {
+      "IdeaSearchResult": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["idea_id", "status", "received_at"],
+        "required": ["idea_id", "title", "score", "matched_by"],
         "properties": {
           "idea_id": {"type": "string", "pattern": "^idea_[A-Z0-9]+$"},
-          "status": {"const": "received"},
-          "received_at": {"type": "string", "format": "date-time"}
-        }
-      },
-      "CreateProjectRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["title", "objective"],
-        "properties": {
           "title": {"type": "string", "minLength": 1, "maxLength": 200},
-          "objective": {"type": "string", "minLength": 1, "maxLength": 4000},
-          "source_idea_ids": {"type": "array", "maxItems": 20, "uniqueItems": true, "items": {"type": "string", "pattern": "^idea_[A-Z0-9]+$"}},
-          "constraints": {"type": "array", "maxItems": 30, "items": {"type": "string", "minLength": 1, "maxLength": 1000}}
+          "score": {"type": "number", "minimum": 0, "maximum": 1},
+          "matched_by": {"type": "array", "items": {"type": "string", "enum": ["title", "keyword", "summary"]}}
         }
       },
-      "ProjectConfirmationRequired": {
+      "IdeaSearchResponse": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["request_id", "status", "confirmation"],
+        "required": ["query", "search_mode", "index_provider", "vault_commit", "results"],
         "properties": {
-          "request_id": {"type": "string", "pattern": "^project_request_[A-Z0-9]+$"},
-          "status": {"const": "confirmation_required"},
-          "confirmation": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["summary", "planned_changes", "expires_at"],
-            "properties": {
-              "summary": {"type": "string", "maxLength": 1000},
-              "planned_changes": {"type": "array", "minItems": 1, "maxItems": 20, "items": {"type": "string", "maxLength": 500}},
-              "expires_at": {"type": "string", "format": "date-time"}
-            }
-          }
+          "query": {"type": "string"},
+          "search_mode": {"type": "string", "const": "lexical"},
+          "index_provider": {"type": "string", "const": "aps-server"},
+          "vault_commit": {"type": "string", "pattern": "^[0-9a-f]{7,64}$"},
+          "results": {"type": "array", "items": {"$ref": "#/components/schemas/IdeaSearchResult"}}
         }
       },
-      "JobAccepted": {
+      "IdeaSimilarResponse": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["job_id", "status", "operation", "status_url"],
+        "required": ["idea_id", "search_mode", "index_provider", "vault_commit", "results"],
         "properties": {
-          "job_id": {"type": "string", "pattern": "^job_[A-Z0-9]+$"},
-          "status": {"const": "queued"},
-          "operation": {"const": "project.propose"},
-          "status_url": {"type": "string", "pattern": "^/v1/jobs/job_[A-Z0-9]+$"}
+          "idea_id": {"type": "string", "pattern": "^idea_[A-Z0-9]+$"},
+          "search_mode": {"type": "string", "const": "lexical"},
+          "index_provider": {"type": "string", "const": "aps-server"},
+          "vault_commit": {"type": "string", "pattern": "^[0-9a-f]{7,64}$"},
+          "results": {"type": "array", "items": {"$ref": "#/components/schemas/IdeaSearchResult"}}
+        }
+      },
+      "IdeaDetailResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["vault_commit", "generated_at", "idea"],
+        "properties": {
+          "vault_commit": {"type": "string", "pattern": "^[0-9a-f]{7,64}$"},
+          "generated_at": {"type": "string", "format": "date-time"},
+          "idea": {"$ref": "#/components/schemas/IdeaItem"}
+        }
+      },
+      "RecommendedIdeaSetResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["vault_commit", "generated_at", "idea_set"],
+        "properties": {
+          "vault_commit": {"type": "string", "pattern": "^[0-9a-f]{7,64}$"},
+          "generated_at": {"type": "string", "format": "date-time"},
+          "idea_set": {"$ref": "#/components/schemas/IdeaSet"}
         }
       },
       "ContentStatusItem": {
@@ -529,13 +564,10 @@
       }
     },
     "responses": {
-      "BadRequest": {"description": "Invalid input", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
       "Unauthorized": {"description": "Authentication required", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
       "Forbidden": {"description": "Operation forbidden", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
       "NotFound": {"description": "Resource not found", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
-      "ContentNotGenerated": {"description": "No validated content exists", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
-      "Conflict": {"description": "Invalid state or expired confirmation", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}},
-      "RateLimited": {"description": "Token rate limit exceeded", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}}
+      "ContentNotGenerated": {"description": "No validated content exists", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}}
     }
   }
 }

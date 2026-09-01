@@ -1,0 +1,12 @@
+APS Server 개발 순서
+
+[완료] 1. Job 결과를 실제 schema로 검증하고 canonical JSON으로 만든다.
+[완료] 2. 검증된 JSON을 ContentStore에 원자적으로 게시한다.
+[완료] 3. 생성 Job은 JSON만 만들고 HTML은 저장된 JSON viewer로만 제공한다.
+[완료] 4. Vault의 brief 실행 코드와 문서를 공식 extensions/briefing으로 복사 이전하고 서버 실행 경로를 전환한다.
+[완료] 5. operation별 고정 입력 model을 적용해 자유 dictionary 입력을 제거한다.
+[완료] 6. Idea model, 고정 Vault 수집 Job과 title, keywords, summary 기반 lexical 검색을 구현한다.
+[완료] 7. 내부 scheduler가 등록된 Job을 호출해 Content를 주기적으로 갱신하게 한다.
+[완료] 8. 공식 확장 manifest 검증, 설치 CLI와 재시작 기반 활성화를 구현한다.
+[완료] 9. 고정 00_Inbox Idea 접수·정리 commit을 구현하고 Project·Service 쓰기는 proposal 승인 흐름으로 분리한다.
+[대기] 10. 필요 규모에서 선택형 GPU aps-index와 hybrid 검색을 추가한다.

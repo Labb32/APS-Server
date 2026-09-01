@@ -6,7 +6,7 @@ from urllib.parse import quote
 
 from .content_models import (
     DailyBriefingResponse,
-    IdeaCluster,
+    IdeaSet,
     IdeaItem,
     IdeasResponse,
     Issue,
@@ -209,23 +209,24 @@ class HTMLRenderer:
         )
 
     def _idea_card(self, idea: IdeaItem) -> str:
-        tags = " ".join(f'<span class="badge">{self._text(tag)}</span>' for tag in idea.tags)
+        keywords = " ".join(f'<span class="badge">{self._text(keyword)}</span>' for keyword in idea.keywords)
+        idea_sets = ", ".join(idea.idea_set_ids) or "unassigned"
         return (
             '<article class="card">'
-            f'<div>{tags} <span class="state">{self._text(idea.status)}</span></div>'
-            f'<h3>{self._text(idea.idea_id)}</h3><p>{self._text(idea.content)}</p>'
-            f'<div class="card-foot"><span>{self._text(idea.received_at.isoformat())}</span><span>{self._text(idea.cluster_id or "unclustered")}</span></div>'
+            f'<div>{keywords} <span class="state">{self._text(idea.status)} · {self._text(idea.commit_status)}</span></div>'
+            f'<h3>{self._text(idea.title)}</h3><p>{self._text(idea.summary)}</p>'
+            f'<div class="card-foot"><span>{self._text(idea.idea_id)} · {self._text(idea.updated_at.isoformat())}</span><span>{self._text(idea_sets)}</span></div>'
             '</article>'
         )
 
-    def _idea_cluster(self, cluster: IdeaCluster) -> str:
-        members = "".join(f"<li>{self._text(item)}</li>" for item in cluster.member_idea_ids)
-        categories = " ".join(f'<span class="badge">{self._text(item)}</span>' for item in cluster.categories)
+    def _idea_set(self, idea_set: IdeaSet) -> str:
+        members = "".join(f"<li>{self._text(item)}</li>" for item in idea_set.member_idea_ids)
+        keywords = " ".join(f'<span class="badge">{self._text(item)}</span>' for item in idea_set.keywords)
         return (
             '<details class="record"><summary>'
-            f'<span class="state">{self._text(cluster.merge_status)}</span><span>{self._text(cluster.canonical_idea)}</span>'
-            f'<span class="mono">{len(cluster.member_idea_ids)} ideas</span></summary>'
-            f'<div class="record-body"><section><h3>Members</h3><ul>{members}</ul></section><section><h3>Categories</h3><p>{categories}</p></section></div></details>'
+            f'<span class="state">{self._text(idea_set.status)} · {self._text(idea_set.commit_status)}</span><span>{self._text(idea_set.title)}</span>'
+            f'<span class="mono">{len(idea_set.member_idea_ids)} ideas</span></summary>'
+            f'<div class="record-body"><section><h3>Summary</h3><p>{self._text(idea_set.summary)}</p><h3>Members</h3><ul>{members}</ul></section><section><h3>Keywords</h3><p>{keywords}</p></section></div></details>'
         )
 
     def ideas(self, response: IdeasResponse, status_filter: str) -> str:
@@ -233,14 +234,14 @@ class HTMLRenderer:
         values.update(
             {
                 "IDEA_COUNT": str(len(response.data.ideas)),
-                "CLUSTER_COUNT": str(len(response.data.clusters)),
+                "IDEA_SET_COUNT": str(len(response.data.idea_sets)),
                 "STATUS_FILTER": status_filter,
                 "IDEA_CARDS_HTML": "".join(self._idea_card(item) for item in response.data.ideas) or '<div class="empty">조건에 맞는 아이디어가 없습니다.</div>',
-                "CLUSTER_RECORDS_HTML": "".join(self._idea_cluster(item) for item in response.data.clusters) or '<div class="empty">생성된 유사 아이디어 묶음이 없습니다.</div>',
+                "IDEA_SET_RECORDS_HTML": "".join(self._idea_set(item) for item in response.data.idea_sets) or '<div class="empty">생성된 유사 Idea set이 없습니다.</div>',
             }
         )
         return self._render(
             "ideas.html",
             values,
-            {"APS_CONTENT_CSS", "STALE_BADGE_HTML", "IDEA_CARDS_HTML", "CLUSTER_RECORDS_HTML"},
+            {"APS_CONTENT_CSS", "STALE_BADGE_HTML", "IDEA_CARDS_HTML", "IDEA_SET_RECORDS_HTML"},
         )

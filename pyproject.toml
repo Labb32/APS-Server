@@ -5,11 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "aps-server"
 version = "0.1.0"
-description = "Containerized APS Vault automation and agent job API"
+description = "FastAPI service for canonical APS Vault content and official extensions"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi==0.141.1",
   "pydantic-settings==2.15.0",
+  "tzdata==2026.3",
   "uvicorn==0.52.4",
 ]
 

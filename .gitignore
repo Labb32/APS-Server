@@ -1,4 +1,5 @@
 .env
+deploy/config/aps.env
 .venv/
 __pycache__/
 .pytest_cache/
@@ -9,3 +10,5 @@ build/
 *.egg-info/
 /.brief/
 /tasks/
+.proposal-vault/
+.proposal-vault.zip

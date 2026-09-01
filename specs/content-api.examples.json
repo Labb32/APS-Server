@@ -7,7 +7,7 @@
     "generator_version": "0.1.0",
     "stale": false,
     "partial_failure": false,
-    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sha256": "df27f5c642373e8202aa6fecdb3ddec890f4f326267cea9af64869cfd3fa60ff",
     "data": {
       "as_of_date": "2026-08-25",
       "summary": {"active_projects": 1, "tasks": 2, "decisions": 0, "services_due": 1},
@@ -36,7 +36,7 @@
     "generator_version": "0.1.0",
     "stale": false,
     "partial_failure": false,
-    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sha256": "1366c91aace01207ce1e0a84e403c88841a33fa4d547696725028e7c268d4cc2",
     "data": {
       "projects": [
         {"project_id": "aps-server-briefing", "name": "APS 서버 단위 브리핑 운영", "status": "In_Progress", "tier": "T4", "briefing_available": true}
@@ -51,7 +51,7 @@
     "generator_version": "0.1.0",
     "stale": false,
     "partial_failure": false,
-    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sha256": "717a0e235600fb0715155feabc15f8574aae5def82bc0b97a2f05b285cdce356",
     "data": {
       "project": {
         "project_id": "aps-server-briefing",
@@ -73,7 +73,7 @@
     "generator_version": "0.1.0",
     "stale": false,
     "partial_failure": false,
-    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sha256": "6a8d8fec952875011af1544a7b71f33321fd231415dc38825bfbe33776b3f472",
     "data": {
       "as_of_date": "2026-08-25",
       "scope": "all",
@@ -103,45 +103,33 @@
     "generator_version": "0.1.0",
     "stale": false,
     "partial_failure": false,
-    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sha256": "6ec36aa4d01966491e3c45edc7647e004286024b1b6fe93ef29d5d9aeb2ff9f1",
     "data": {
       "ideas": [
-        {"idea_id": "idea_01KABC", "content": "프로젝트 문서를 음성으로 브리핑한다.", "tags": ["briefing", "voice"], "status": "organized", "received_at": "2026-08-25T14:00:00+09:00", "cluster_id": "cluster_voice"}
+        {"idea_id": "idea_01KABC", "title": "음성 기반 프로젝트 브리핑", "keywords": ["briefing", "voice"], "summary": "프로젝트 문서를 음성으로 브리핑한다.", "status": "organized", "idea_set_ids": [], "updated_at": "2026-08-25T14:00:00+09:00", "storage": "vault", "commit_status": "committed"}
       ],
-      "clusters": [
-        {"cluster_id": "cluster_voice", "canonical_idea": "음성 기반 프로젝트 브리핑", "member_idea_ids": ["idea_01KABC"], "categories": ["briefing"], "merge_status": "suggested"}
+      "idea_sets": [
+        {"idea_set_id": "idea_set_01KSET", "title": "프로젝트 브리핑 인터페이스", "keywords": ["briefing", "interface"], "summary": "프로젝트 브리핑을 다양한 인터페이스로 제공하는 Idea 묶음이다.", "status": "suggested", "member_idea_ids": ["idea_01KABC"], "storage": "vault", "commit_status": "committed"}
       ]
     }
   },
-  "create_idea_request": {
-    "content": "프로젝트 문서를 음성으로 브리핑하는 기능",
-    "tags": ["briefing", "voice"]
+  "idea_search_request": {
+    "query": "음성 브리핑",
+    "limit": 3
   },
-  "create_idea_response": {
-    "idea_id": "idea_01KABC",
-    "status": "received",
-    "received_at": "2026-08-25T14:00:00+09:00"
-  },
-  "create_project_request": {
-    "title": "음성 프로젝트 브리핑",
-    "objective": "APS 프로젝트 브리핑을 음성으로 제공한다.",
-    "source_idea_ids": ["idea_01KABC"],
-    "constraints": ["기존 일일 브리핑 결과를 재사용한다."]
-  },
-  "project_confirmation_required_response": {
-    "request_id": "project_request_01KABC",
-    "status": "confirmation_required",
-    "confirmation": {
-      "summary": "새 프로젝트 문서와 ProjectContext 초안을 생성합니다.",
-      "planned_changes": ["프로젝트 문서 초안 생성", "ProjectContext brief와 초기 Task 생성"],
-      "expires_at": "2026-08-25T14:30:00+09:00"
-    }
-  },
-  "confirm_project_response": {
-    "job_id": "job_01KABC",
-    "status": "queued",
-    "operation": "project.propose",
-    "status_url": "/v1/jobs/job_01KABC"
+  "idea_search_response": {
+    "query": "음성 브리핑",
+    "search_mode": "lexical",
+    "index_provider": "aps-server",
+    "vault_commit": "0123456789abcdef0123456789abcdef01234567",
+    "results": [
+      {
+        "idea_id": "idea_01KABC",
+        "title": "음성 기반 프로젝트 브리핑",
+        "score": 0.85,
+        "matched_by": ["title", "keyword", "summary"]
+      }
+    ]
   },
   "content_status_response": {
     "vault_commit": "0123456789abcdef0123456789abcdef01234567",

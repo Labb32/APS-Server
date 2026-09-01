@@ -1,16 +1,19 @@
+"""Fixed operation allowlist and Vault-backed operation executor."""
+
 from __future__ import annotations
 
-import hashlib
 import json
 import subprocess
 import sys
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from .brief_extension import BriefExtension, BriefExtensionError
 from .config import Settings
-from .models import Artifact, CreateJobRequest, OperationName
-from .vault import VaultError, VaultRepository
+from .idea_catalog import IdeaCatalogError, load_idea_catalog
+from .idea_service import IdeaService, IdeaServiceError
+from .models import CreateJobRequest, OperationName
+from .vault import VaultRepository
 
 
 POLICIES: dict[OperationName, dict[str, Any]] = {
@@ -18,25 +21,34 @@ POLICIES: dict[OperationName, dict[str, Any]] = {
     OperationName.BRIEFING_PROJECT: {"roles": {"operator", "viewer"}, "write_mode": "none"},
     OperationName.VAULT_AUDIT: {"roles": {"scheduler", "operator"}, "write_mode": "none"},
     OperationName.SERVICE_MAINTENANCE_DUE: {"roles": {"scheduler", "operator", "viewer"}, "write_mode": "none"},
+    OperationName.IDEAS_INDEX_REFRESH: {"roles": {"scheduler", "operator"}, "write_mode": "none"},
+    OperationName.IDEAS_CURATE: {"roles": {"scheduler", "operator"}, "write_mode": "commit"},
 }
 
 
 class OperationError(RuntimeError):
-    pass
+    def __init__(self, message: str, code: str = "OPERATION_FAILED") -> None:
+        super().__init__(message)
+        self.code = code
 
 
 class OperationExecutor:
     def __init__(self, settings: Settings, vault: VaultRepository) -> None:
         self.settings = settings
         self.vault = vault
+        self.brief = BriefExtension(settings.extensions_path)
 
-    def execute(self, job_id: str, request: CreateJobRequest) -> tuple[dict[str, Any], list[Artifact], dict[str, str]]:
+    def execute(self, request: CreateJobRequest) -> dict[str, Any]:
         if request.operation == OperationName.VAULT_AUDIT:
-            return self._vault_audit(), [], {}
+            return self._vault_audit()
         if request.operation == OperationName.SERVICE_MAINTENANCE_DUE:
-            return self._service_due(request), [], {}
+            return self._service_due(request)
         if request.operation in {OperationName.BRIEFING_DAILY, OperationName.BRIEFING_PROJECT}:
-            return self._briefing(job_id, request)
+            return self._briefing(request)
+        if request.operation == OperationName.IDEAS_INDEX_REFRESH:
+            return self._ideas_index(request)
+        if request.operation == OperationName.IDEAS_CURATE:
+            return self._ideas_curate()
         raise OperationError(f"unsupported operation: {request.operation}")
 
     def _run(self, command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -52,63 +64,47 @@ class OperationExecutor:
                 check=False,
             )
         except (OSError, subprocess.TimeoutExpired) as error:
-            raise OperationError(str(error)) from error
+            raise OperationError(str(error), "PROVIDER_EXECUTION_FAILED") from error
         if completed.returncode:
             detail = (completed.stderr or completed.stdout or "no output").strip()
-            raise OperationError(f"command failed ({completed.returncode}): {detail[-4000:]}")
+            raise OperationError(f"command failed ({completed.returncode}): {detail[-4000:]}", "PROVIDER_EXECUTION_FAILED")
         return completed
 
-    def _briefing(self, job_id: str, request: CreateJobRequest):
-        script = self.vault.root / "scripts" / "daily_briefing.py"
-        if not script.is_file():
-            raise OperationError("Vault briefing script is missing")
-        output_format = str(request.input.get("format", "html"))
-        if output_format not in {"html", "json"}:
-            raise OperationError("format must be html or json")
-        project_ids = request.context.project_ids
-        if request.operation == OperationName.BRIEFING_PROJECT and len(project_ids) != 1:
-            raise OperationError("briefing.project requires exactly one project_id")
+    @staticmethod
+    def _json_output(completed: subprocess.CompletedProcess[str]) -> dict[str, Any]:
+        try:
+            payload = json.loads(completed.stdout)
+        except json.JSONDecodeError as error:
+            raise OperationError("extension returned invalid JSON", "PROVIDER_OUTPUT_INVALID") from error
+        if not isinstance(payload, dict):
+            raise OperationError("extension JSON result must be an object", "PROVIDER_OUTPUT_INVALID")
+        return payload
 
-        command = [sys.executable, str(script), "--no-pull"]
-        if project_ids:
-            command.extend(["--project", project_ids[0]])
-        if output_format == "json":
-            command.append("--json")
-            completed = self._run(command, self.vault.root)
-            try:
-                payload = json.loads(completed.stdout)
-            except json.JSONDecodeError as error:
-                raise OperationError("briefing returned invalid JSON") from error
-            return payload, [], {}
+    def _extension_command(self) -> list[str]:
+        try:
+            self.brief.require()
+        except BriefExtensionError as error:
+            raise OperationError(str(error), "EXTENSION_NOT_READY") from error
+        return [
+            sys.executable,
+            str(self.brief.entrypoint),
+            "--vault",
+            str(self.vault.root),
+            "--json",
+        ]
 
-        artifact_dir = self.settings.data_path / "artifacts" / job_id
-        artifact_dir.mkdir(parents=True, exist_ok=True)
-        output = artifact_dir / "briefing.html"
-        command.extend(["--html", str(output), "--no-open"])
-        self._run(command, self.vault.root)
-        if not output.is_file() or output.stat().st_size < 1024:
-            raise OperationError("generated briefing HTML failed validation")
-        digest = hashlib.sha256(output.read_bytes()).hexdigest()
-        artifact = Artifact(
-            artifact_id="briefing-html",
-            media_type="text/html",
-            download_url=f"/v1/jobs/{job_id}/artifacts/briefing-html",
-            sha256=digest,
-            expires_at=datetime.now(UTC) + timedelta(days=7),
-        )
-        return {"format": "html", "bytes": output.stat().st_size}, [artifact], {artifact.artifact_id: str(output)}
+    def _briefing(self, request: CreateJobRequest) -> dict[str, Any]:
+        command = self._extension_command()
+        if request.operation == OperationName.BRIEFING_PROJECT:
+            command.extend(["--project", request.context.project_ids[0]])
+        return self._json_output(self._run(command, self.vault.root))
 
     def _service_due(self, request: CreateJobRequest) -> dict[str, Any]:
-        script = self.vault.root / "scripts" / "daily_briefing.py"
-        command = [sys.executable, str(script), "--dry-run", "--json", "--no-pull"]
-        if request.input.get("date"):
-            command.extend(["--today", str(request.input["date"])])
-        completed = self._run(command, self.vault.root)
-        payload = json.loads(completed.stdout)
-        return {
-            "date": payload.get("date"),
-            "maintenance": payload.get("service_maintenance_markdown", []),
-        }
+        command = self._extension_command()
+        command.append("--dry-run")
+        if request.input.date:
+            command.extend(["--today", request.input.date.isoformat()])
+        return self._json_output(self._run(command, self.vault.root))
 
     def _vault_audit(self) -> dict[str, Any]:
         issues: list[dict[str, str]] = []
@@ -133,3 +129,16 @@ class OperationExecutor:
             if not prompt.is_file():
                 issues.append({"path": note.name, "code": "MISSING_BRIEF_PROMPT"})
         return {"active_projects": active_count, "issues": issues, "healthy": not issues}
+
+    def _ideas_index(self, request: CreateJobRequest) -> dict[str, Any]:
+        try:
+            return load_idea_catalog(self.vault.root)
+        except (OSError, IdeaCatalogError) as error:
+            raise OperationError(str(error), "IDEA_CATALOG_INVALID") from error
+
+    def _ideas_curate(self) -> dict[str, Any]:
+        try:
+            return IdeaService(self.vault, sync_before_write=False).curate()
+        except (OSError, IdeaCatalogError, IdeaServiceError) as error:
+            code = error.code if isinstance(error, IdeaServiceError) else "IDEA_CURATION_FAILED"
+            raise OperationError(str(error), code) from error

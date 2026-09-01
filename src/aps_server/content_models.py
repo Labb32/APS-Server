@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class ContractModel(BaseModel):
@@ -124,26 +124,159 @@ class ServiceMaintenanceResponse(ContentEnvelope):
     data: ServiceMaintenanceData
 
 
+IdeaId = Annotated[str, Field(pattern=r"^idea_[A-Z0-9]+$")]
+IdeaSetId = Annotated[str, Field(pattern=r"^idea_set_[A-Z0-9]+$")]
+IdeaKeyword = Annotated[str, Field(min_length=1, max_length=80)]
+
+
 class IdeaItem(ContractModel):
-    idea_id: str = Field(pattern=r"^idea_[A-Z0-9]+$")
-    content: str = Field(min_length=1, max_length=8000)
-    tags: list[str] = Field(default_factory=list, max_length=20)
-    status: Literal["received", "organized", "proposed", "published"]
-    received_at: datetime
-    cluster_id: str | None = Field(default=None, max_length=80)
+    idea_id: IdeaId
+    title: str = Field(min_length=1, max_length=200)
+    keywords: list[IdeaKeyword] = Field(default_factory=list, max_length=20)
+    summary: str = Field(min_length=1, max_length=2000)
+    status: Literal["inbox", "incubator", "organized", "proposed", "published", "archived"]
+    idea_set_ids: list[IdeaSetId] = Field(default_factory=list, max_length=20)
+    updated_at: datetime
+    storage: Literal["vault", "inbox"] = "vault"
+    commit_status: Literal["committed", "pending"] = "committed"
 
 
-class IdeaCluster(ContractModel):
-    cluster_id: str = Field(max_length=80)
-    canonical_idea: str = Field(max_length=4000)
-    member_idea_ids: list[str] = Field(min_length=1)
-    categories: list[str] = Field(default_factory=list)
-    merge_status: Literal["suggested", "approved", "rejected"]
+class IdeaSet(ContractModel):
+    idea_set_id: IdeaSetId
+    title: str = Field(min_length=1, max_length=200)
+    keywords: list[IdeaKeyword] = Field(default_factory=list, max_length=20)
+    summary: str = Field(min_length=1, max_length=2000)
+    status: Literal["suggested", "approved", "rejected", "archived"]
+    member_idea_ids: list[IdeaId] = Field(min_length=1, max_length=100)
+    storage: Literal["vault", "inbox"] = "vault"
+    commit_status: Literal["committed", "pending"] = "committed"
+
+
+class IdeaCreateRequest(ContractModel):
+    content: str | None = Field(default=None, min_length=1, max_length=10000)
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    keywords: list[IdeaKeyword] = Field(default_factory=list, max_length=20)
+    summary: str | None = Field(default=None, min_length=1, max_length=2000)
+
+    @field_validator("content", "title", "summary")
+    @classmethod
+    def text_must_not_be_blank(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("value must not be blank")
+        return value
+
+    @model_validator(mode="after")
+    def require_content_or_canonical_fields(self) -> "IdeaCreateRequest":
+        if self.content is None and (self.title is None or self.summary is None):
+            raise ValueError("content or both title and summary are required")
+        return self
+
+    @field_validator("keywords")
+    @classmethod
+    def normalize_keywords(cls, value: list[str]) -> list[str]:
+        value = [item.strip() for item in value]
+        if any(not item or "\n" in item or "\r" in item for item in value):
+            raise ValueError("keywords must be non-blank single-line strings")
+        if len(set(value)) != len(value):
+            raise ValueError("keywords must be unique")
+        return value
+
+
+class IdeaUpdateRequest(ContractModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    keywords: list[IdeaKeyword] | None = Field(default=None, max_length=20)
+    summary: str | None = Field(default=None, min_length=1, max_length=2000)
+    status: Literal["inbox", "incubator", "organized", "proposed", "published", "archived"] | None = None
+
+    @model_validator(mode="after")
+    def require_change(self) -> "IdeaUpdateRequest":
+        if not self.model_fields_set:
+            raise ValueError("at least one field is required")
+        return self
+
+    @field_validator("title", "summary")
+    @classmethod
+    def optional_text_must_not_be_blank(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("value must not be blank")
+        return value
+
+    @field_validator("keywords")
+    @classmethod
+    def normalize_optional_keywords(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        return IdeaCreateRequest.normalize_keywords(value)
+
+
+class IdeaMergeRequest(ContractModel):
+    source_idea_ids: list[IdeaId] = Field(min_length=2, max_length=20)
+    title: str = Field(min_length=1, max_length=200)
+    keywords: list[IdeaKeyword] = Field(default_factory=list, max_length=20)
+    summary: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("source_idea_ids")
+    @classmethod
+    def unique_sources(cls, value: list[str]) -> list[str]:
+        if len(set(value)) != len(value):
+            raise ValueError("source_idea_ids must be unique")
+        return value
+
+    @field_validator("title", "summary")
+    @classmethod
+    def text_must_not_be_blank(cls, value: str) -> str:
+        return str(IdeaCreateRequest.text_must_not_be_blank(value))
+
+    @field_validator("keywords")
+    @classmethod
+    def normalize_keywords(cls, value: list[str]) -> list[str]:
+        return IdeaCreateRequest.normalize_keywords(value)
+
+
+class IdeaSetCreateRequest(ContractModel):
+    title: str = Field(min_length=1, max_length=200)
+    keywords: list[IdeaKeyword] = Field(default_factory=list, max_length=20)
+    summary: str = Field(min_length=1, max_length=2000)
+    member_idea_ids: list[IdeaId] = Field(min_length=1, max_length=100)
+
+    @field_validator("member_idea_ids")
+    @classmethod
+    def unique_members(cls, value: list[str]) -> list[str]:
+        if len(set(value)) != len(value):
+            raise ValueError("member_idea_ids must be unique")
+        return value
+
+    @field_validator("title", "summary")
+    @classmethod
+    def text_must_not_be_blank(cls, value: str) -> str:
+        return str(IdeaCreateRequest.text_must_not_be_blank(value))
+
+    @field_validator("keywords")
+    @classmethod
+    def normalize_keywords(cls, value: list[str]) -> list[str]:
+        return IdeaCreateRequest.normalize_keywords(value)
+
+
+class IdeaMutationResponse(ContractModel):
+    idea: IdeaItem
+    source_idea_ids: list[IdeaId] = Field(default_factory=list)
+    vault_commit: str | None = Field(default=None, pattern=r"^[0-9a-f]{7,64}$")
+
+
+class IdeaSetMutationResponse(ContractModel):
+    idea_set: IdeaSet
+    vault_commit: str | None = Field(default=None, pattern=r"^[0-9a-f]{7,64}$")
 
 
 class IdeasData(ContractModel):
     ideas: list[IdeaItem] = Field(default_factory=list)
-    clusters: list[IdeaCluster] = Field(default_factory=list)
+    idea_sets: list[IdeaSet] = Field(default_factory=list)
 
 
 class IdeasResponse(ContentEnvelope):
@@ -151,34 +284,52 @@ class IdeasResponse(ContentEnvelope):
     data: IdeasData
 
 
-class CreateIdeaRequest(ContractModel):
-    content: str = Field(min_length=1, max_length=8000)
-    tags: list[str] = Field(default_factory=list, max_length=20)
+class IdeaSearchRequest(ContractModel):
+    query: str = Field(min_length=1, max_length=200)
+    limit: int = Field(default=10, ge=1, le=50)
+
+    @field_validator("query")
+    @classmethod
+    def query_must_not_be_blank(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("query must not be blank")
+        return value
 
 
-class CreateIdeaResponse(ContractModel):
-    idea_id: str = Field(pattern=r"^idea_[A-Z0-9]+$")
-    status: Literal["received"] = "received"
-    received_at: datetime
-
-
-class CreateProjectRequest(ContractModel):
+class IdeaSearchResult(ContractModel):
+    idea_id: IdeaId
     title: str = Field(min_length=1, max_length=200)
-    objective: str = Field(min_length=1, max_length=4000)
-    source_idea_ids: list[str] = Field(default_factory=list, max_length=20)
-    constraints: list[str] = Field(default_factory=list, max_length=30)
+    score: float = Field(ge=0, le=1)
+    matched_by: list[Literal["title", "keyword", "summary"]] = Field(default_factory=list)
 
 
-class Confirmation(ContractModel):
-    summary: str = Field(max_length=1000)
-    planned_changes: list[str] = Field(min_length=1, max_length=20)
-    expires_at: datetime
+class IdeaSearchResponse(ContractModel):
+    query: str
+    search_mode: Literal["lexical"] = "lexical"
+    index_provider: Literal["aps-server"] = "aps-server"
+    vault_commit: str = Field(pattern=r"^[0-9a-f]{7,64}$")
+    results: list[IdeaSearchResult] = Field(default_factory=list)
 
 
-class ProjectConfirmationRequired(ContractModel):
-    request_id: str = Field(pattern=r"^project_request_[A-Z0-9]+$")
-    status: Literal["confirmation_required"] = "confirmation_required"
-    confirmation: Confirmation
+class IdeaSimilarResponse(ContractModel):
+    idea_id: IdeaId
+    search_mode: Literal["lexical"] = "lexical"
+    index_provider: Literal["aps-server"] = "aps-server"
+    vault_commit: str = Field(pattern=r"^[0-9a-f]{7,64}$")
+    results: list[IdeaSearchResult] = Field(default_factory=list)
+
+
+class IdeaDetailResponse(ContractModel):
+    vault_commit: str = Field(pattern=r"^[0-9a-f]{7,64}$")
+    generated_at: datetime
+    idea: IdeaItem
+
+
+class RecommendedIdeaSetResponse(ContractModel):
+    vault_commit: str = Field(pattern=r"^[0-9a-f]{7,64}$")
+    generated_at: datetime
+    idea_set: IdeaSet
 
 
 class ContentStatusItem(ContractModel):

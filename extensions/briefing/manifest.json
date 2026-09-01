@@ -1,0 +1,45 @@
+{
+  "id": "briefing",
+  "version": "0.1.0",
+  "type": "content-provider",
+  "official": true,
+  "aps_api": "1",
+  "entrypoint": "entrypoint.py",
+  "capabilities": [
+    "daily_briefing",
+    "project_briefing",
+    "service_maintenance"
+  ],
+  "operations": [
+    "briefing.daily",
+    "briefing.project",
+    "service.maintenance_due"
+  ],
+  "schedules": [
+    {
+      "schedule_id": "briefing.daily-refresh",
+      "cron": "0 6 * * *",
+      "timezone": "Asia/Seoul",
+      "enabled": true,
+      "request": {
+        "operation": "briefing.daily",
+        "input": {},
+        "context": {}
+      }
+    },
+    {
+      "schedule_id": "briefing.service-maintenance",
+      "cron": "15 5 * * *",
+      "timezone": "Asia/Seoul",
+      "enabled": true,
+      "request": {
+        "operation": "service.maintenance_due",
+        "input": {},
+        "context": {}
+      }
+    }
+  ],
+  "vault_access": "read-only",
+  "network": "ai-provider-only",
+  "activation": "restart"
+}
