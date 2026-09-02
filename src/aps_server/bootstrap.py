@@ -8,6 +8,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from .ai_gateway import AIGateway
 from .config import Settings
 from .extensions import OfficialExtensionInstaller
 
@@ -145,9 +146,22 @@ def prepare_extensions(settings: Settings) -> None:
             raise BootstrapError(f"unknown official initial extension: {extension_id}") from error
 
 
+def require_ai_provider(settings: Settings) -> None:
+    configured, status = AIGateway(settings).readiness()
+    if configured:
+        return
+    provider = status["provider"]
+    raise BootstrapError(f"selected AI provider is not ready: {provider}")
+
+
 def main() -> None:
     load_config_file()
+    if not os.environ.get("APS_AI_PROVIDER", "").strip():
+        raise BootstrapError(
+            "APS_AI_PROVIDER is required; choose codex, openai-compatible, or agent-http"
+        )
     settings = Settings()
+    require_ai_provider(settings)
     prepare_vault(settings)
     prepare_extensions(settings)
     os.execvp(

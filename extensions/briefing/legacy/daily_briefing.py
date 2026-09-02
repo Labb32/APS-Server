@@ -161,7 +161,7 @@ def sync_vault(vault: Path, timeout: int = 120) -> bool:
 
 
 def runner_command(config: dict[str, Any], os_name: str | None = None) -> list[str]:
-    """설정 명령을 우선하고, 비어 있으면 운영체제에 맞는 Codex CLI를 사용한다."""
+    """활성 진입점이 제공한 고정 Core bridge 명령을 실행한다."""
     configured = config.get("runner", {}).get("command", [])
     if isinstance(configured, list) and configured:
         return [str(part).replace("{schema}", str(RESPONSE_SCHEMA_PATH)) for part in configured]
@@ -184,11 +184,11 @@ def abnormal(note: Note, message: str) -> ProjectResult:
 
 def parse_agent_response(note: Note, response: str) -> ProjectResult:
     if not response.strip():
-        return abnormal(note, "Codex 브리핑 응답이 비어 있습니다.")
+        return abnormal(note, "AI provider 브리핑 응답이 비어 있습니다.")
     try:
         payload = json.loads(response)
     except json.JSONDecodeError:
-        return abnormal(note, "Codex 응답을 구조화된 결과로 해석할 수 없습니다.")
+        return abnormal(note, "AI provider 응답을 구조화된 결과로 해석할 수 없습니다.")
     tasks = payload.get("today_tasks", [])
     notes = payload.get("notes", [])
     if not isinstance(tasks, list) or not all(isinstance(item, str) for item in tasks):
@@ -253,15 +253,15 @@ def run_project_briefings(
                 check=False,
             )
         except subprocess.TimeoutExpired:
-            return abnormal(note, f"Codex 실행 시간이 {timeout}초를 초과했습니다.")
+            return abnormal(note, f"AI provider 실행 시간이 {timeout}초를 초과했습니다.")
         except OSError as error:
-            return abnormal(note, f"Codex 실행기를 시작할 수 없습니다: {error}")
+            return abnormal(note, f"AI gateway bridge를 시작할 수 없습니다: {type(error).__name__}")
 
         if completed.returncode != 0:
             stderr = decode_process_output(completed.stderr).strip()
             stdout = decode_process_output(completed.stdout).strip()
             detail = stderr or stdout or "출력 없음"
-            return abnormal(note, f"Codex 실행 실패(exit {completed.returncode}): {detail}")
+            return abnormal(note, f"AI provider 실행 실패(exit {completed.returncode}): {detail}")
         response = decode_process_output(completed.stdout).strip()
         return parse_agent_response(note, response)
 
@@ -527,4 +527,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

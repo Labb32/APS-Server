@@ -4,6 +4,8 @@ APS Server는 한 사용자의 APS Vault를 연결해 브리핑, 아이디어, �
 
 Vault의 Markdown 문서가 원본이며 APS Server는 인증, 안전한 동기화, 작업 실행, 결과 저장과 API 제공을 담당한다. 조회 요청마다 AI를 실행하지 않고 cron 또는 Job이 미리 생성한 결과를 반환한다.
 
+> **Release status:** `0.1.0` pre-release. Core MVP 구현은 완료됐으며 현재 개인 서버에서 운영 QA와 보안 검증을 진행하는 단계다. 공개 인터넷에 직접 노출하거나 복구 계획 없이 실사용 Vault에 연결하는 것은 아직 권장하지 않는다.
+
 ## 핵심 원칙
 
 - APS Vault의 Markdown을 원본 데이터로 사용한다.
@@ -39,7 +41,7 @@ APS Server ── internal API ── aps-index
                               vector index
 ```
 
-역할 경계의 세부 내용은 [아키텍처](docs/ARCHITECTURE.md), 컨테이너 설정은 [배포 가이드](docs/CONTAINER_DEPLOYMENT.md), HTTP 계약은 [Content API](docs/CONTENT_API.md), 개발 방향은 [프로젝트 계획](docs/PROJECT_PLAN.md), 짧은 구현 순서는 [DEVELOPMENT_ORDER.txt](DEVELOPMENT_ORDER.txt)에서 관리한다.
+역할 경계의 세부 내용은 [아키텍처](docs/ARCHITECTURE.md), 컨테이너 설정은 [배포 가이드](docs/CONTAINER_DEPLOYMENT.md), 상세 HTTP 계약은 [API Reference](docs/API_REFERENCE.md), 설계 기준은 [Content API](docs/CONTENT_API.md), AI 연결은 [AI provider 설정](docs/AI_PROVIDERS.md), 개발 방향은 [프로젝트 계획](docs/PROJECT_PLAN.md)에서 관리한다. 개인 서버 검증과 공개 승인 기준은 [Pre-release QA](docs/PRE_RELEASE_QA.md)를 따른다.
 
 ## JSON과 HTML 응답
 
@@ -87,12 +89,16 @@ HTML은 Nginx 등의 reverse proxy를 통해 직접 웹 페이지처럼 제공�
 - 확장이 설치되지 않은 Core-only 기본 실행
 - 공식 확장 package 검증·설치 CLI와 재시작 기반 활성화
 - 확장 manifest Schedule의 자동 등록과 사용자 시간 override
+- Core AI gateway와 `codex`, `openai-compatible`, `agent-http` provider 선택
+- 초기 설정에서 AI provider 명시 선택과 provider별 필수 설정 검증
 
 ### 코드 구조
 
 | 모듈 | 책임 |
 |---|---|
 | `main.py` | 애플리케이션 lifecycle, 인증, Job 제어 API 조립 |
+| `ai_gateway.py` | 서버 설정 기반 AI provider 선택과 구조화 응답 검증 |
+| `ai_bridge.py` | 공식 확장이 Core gateway를 호출하는 고정 stdin/stdout 계약 |
 | `content_api.py` | materialized JSON 및 HTML Content 조회 라우트 |
 | `idea_api.py` | Idea 조회·접수·수정 라우트 |
 | `api_support.py` | Content 응답 형식과 공통 HTTP 오류 처리 |
@@ -250,7 +256,9 @@ Vector 인덱스는 삭제 후 다시 만들 수 있는 파생 데이터이며 V
 
 ## 실행
 
-`.env.example`을 기준으로 token과 Vault mode를 설정한다. 기본 `local` mode는 named volume에 새 Vault를 자동 생성하고, `git` mode는 원격 repository를 자동 clone한다. 기존 host clone은 `mounted` mode로 연결한다.
+`.env.example`을 기준으로 token, Vault mode와 AI provider를 설정한다. `APS_AI_PROVIDER`에는 `codex`, `openai-compatible`, `agent-http` 중 하나를 반드시 선택해야 하며 기본값은 없다. 기본 `local` mode는 named volume에 새 Vault를 자동 생성하고, `git` mode는 원격 repository를 자동 clone한다. 기존 host clone은 `mounted` mode로 연결한다.
+
+개인 서버 QA에서는 실사용 Vault가 아닌 disposable Vault로 먼저 시작하고 세 역할 token을 모두 서로 다른 무작위 값으로 교체한다.
 
 ```bash
 cp .env.example .env
@@ -259,7 +267,17 @@ docker compose up -d
 docker compose ps
 ```
 
+기본 image는 Node.js나 Codex CLI를 포함하지 않는 provider-neutral Python runtime이다. `openai-compatible`과 `agent-http`는 위 구성을 그대로 사용한다. `APS_AI_PROVIDER=codex`를 선택할 때만 Core image를 빌드한 뒤 Codex 전용 override를 적용한다.
+
+```bash
+docker compose build aps-server
+docker compose -f compose.yaml -f compose.codex.yaml build aps-server
+docker compose -f compose.yaml -f compose.codex.yaml up -d
+```
+
 공식 확장은 `APS_INITIAL_EXTENSIONS=briefing`, 선택형 index 주소는 `APS_INDEX_URL=http://aps-index:8090`으로 지정할 수 있다. Scheduler 설정은 기본적으로 `deploy/config`가 `/config:ro`에 mount된다. 전체 설정 예시는 [컨테이너 배포 가이드](docs/CONTAINER_DEPLOYMENT.md)를 따른다.
+
+`briefing`의 AI 실행은 [AI provider 설정](docs/AI_PROVIDERS.md)에 따라 별도 Codex runtime, vLLM을 포함한 OpenAI 호환 API 또는 APS Agent HTTP 서비스 중 하나를 사용한다. provider와 model은 서버 설정이며 API 요청자가 선택할 수 없다.
 
 기본 bind 주소는 `127.0.0.1:8080`이다.
 
@@ -332,7 +350,21 @@ py -m venv .venv
 3. 선택형 `aps-index` 내부 API와 배포 profile
 4. 기기별 token 발급·회전·폐기
 
-위 항목은 현재 Core MVP 실행에 필요하지 않은 후속 범위다. 오픈소스 배포 전에는 저장소 소유자가 적용할 라이선스를 별도로 선택해야 한다.
+위 항목은 현재 Core MVP 실행에 필요하지 않은 후속 범위다.
+
+## 보안과 공개 전 QA
+
+취약점은 공개 Issue 대신 [Security Policy](SECURITY.md)의 비공개 절차로 제보한다. 저장소 관리자는 공개 전에 GitHub private vulnerability reporting을 활성화해야 한다.
+
+개인 서버에서는 [Pre-release QA](docs/PRE_RELEASE_QA.md)에 따라 Core-only 실행, 역할별 인증, Job과 Scheduler, Idea 제한 쓰기, Git 안전 경계, 공식 extension, 재시작 복구와 24시간 soak를 검증한다. QA blocker가 남아 있으면 release tag를 만들지 않는다.
+
+## 기여
+
+기여 방법과 변경 불가 안전 원칙은 [Contributing Guide](CONTRIBUTING.md)를 따른다. 공개 API 변경은 구현, 관련 문서와 `specs/aps-api.openapi.json`을 같은 pull request에서 갱신해야 한다.
+
+## 라이선스
+
+APS Server의 코드와 문서는 [Apache License 2.0](LICENSE)으로 제공된다. 수정·재배포·상업적 사용과 별도 extension 개발이 가능하며, 재배포 시 라이선스 조건과 [NOTICE](NOTICE)의 출처 고지를 보존해야 한다. Apache License는 APS, APS Server, APS Vault 또는 Labb32의 이름과 로고를 수정 제품의 보증이나 독자적인 브랜드로 사용할 권리를 부여하지 않는다.
 
 ## 운영 안전 규칙
 

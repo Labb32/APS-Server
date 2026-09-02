@@ -1,0 +1,11 @@
+{
+  "projects": {
+    "example-project": {
+      "path": "C:/Projects/example-project",
+      "mounts": [
+        ".brief",
+        "tasks"
+      ]
+    }
+  }
+}

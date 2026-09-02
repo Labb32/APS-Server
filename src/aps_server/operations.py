@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -52,6 +53,27 @@ class OperationExecutor:
         raise OperationError(f"unsupported operation: {request.operation}")
 
     def _run(self, command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+        # Pass only the Core-selected AI configuration to the official child
+        # process. No request field can alter these values.
+        environment = os.environ.copy()
+        environment.update(
+            {
+                "APS_AI_PROVIDER": self.settings.ai_provider,
+                "APS_AI_MODEL": self.settings.ai_model,
+                "APS_AI_TIMEOUT_SECONDS": str(self.settings.ai_timeout_seconds),
+                "APS_AI_PARALLEL_REQUESTS": str(self.settings.ai_parallel_requests),
+                "APS_AI_MAX_INPUT_CHARS": str(self.settings.ai_max_input_chars),
+                "APS_AI_STRUCTURED_OUTPUT": str(self.settings.ai_structured_output).lower(),
+            }
+        )
+        if self.settings.ai_base_url:
+            environment["APS_AI_BASE_URL"] = str(self.settings.ai_base_url)
+        else:
+            environment.pop("APS_AI_BASE_URL", None)
+        if self.settings.ai_api_key:
+            environment["APS_AI_API_KEY"] = self.settings.ai_api_key.get_secret_value()
+        else:
+            environment.pop("APS_AI_API_KEY", None)
         try:
             completed = subprocess.run(
                 command,
@@ -61,6 +83,7 @@ class OperationExecutor:
                 encoding="utf-8",
                 errors="replace",
                 timeout=self.settings.job_timeout_seconds,
+                env=environment,
                 check=False,
             )
         except (OSError, subprocess.TimeoutExpired) as error:

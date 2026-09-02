@@ -107,14 +107,14 @@ format=html
 | Method | Endpoint | 역할 | 상태 | 설명 |
 |---|---|---|---|---|
 | `GET` | `/health/live` | 공개 | `active` | web process 생존 여부 |
-| `GET` | `/health/ready` | 인증 | `active` | 설정, Codex와 공식 briefing 확장 준비 여부 |
+| `GET` | `/health/ready` | 인증 | `active` | 설정, 선택된 AI provider와 공식 briefing 확장 준비 여부 |
 | `GET` | `/v1/operations` | 인증 | `active` | 현재 token이 실행할 수 있는 operation |
 | `GET` | `/v1/scheduler` | operator, scheduler | `active` | Scheduler, queue와 schedule 실행 상태 |
 | `GET` | `/v1/extensions` | 인증 | `active` | 현재 프로세스에 활성화된 공식 확장 |
 | `GET` | `/openapi.json` | 공개 | `active` | runtime OpenAPI |
 | `GET` | `/docs` | 공개 | `active` | FastAPI 문서 UI |
 
-확장이 없는 기본 readiness는 Vault와 인증 설정만 검사한다. `briefing`이 설치된 경우에만 해당 package 필수 파일과 Codex 설치를 추가로 검사한다.
+readiness는 Vault, 인증 설정과 명시적으로 선택한 AI provider의 준비 상태를 항상 검사한다. `briefing`이 설치된 경우에는 package 필수 파일도 추가로 검사한다. 세부 설정은 [AI_PROVIDERS.md](AI_PROVIDERS.md)를 따른다.
 
 ### 5.2 Materialized Content
 
@@ -517,6 +517,5 @@ Content, Job과 FastAPI 요청 검증 오류는 모두 이 envelope를 사용한
 ## 14. 구현 우선순위
 
 1. 공식 확장 checksum·서명 검증과 update·disable CLI
-2. briefing 확장의 Codex 호출을 Core AI gateway로 이전
-3. proposal/approval 쓰기 흐름
-4. 선택형 `aps-index`와 hybrid 검색
+2. proposal/approval 쓰기 흐름
+3. 선택형 `aps-index`와 hybrid 검색

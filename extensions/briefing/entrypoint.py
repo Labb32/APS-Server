@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import sys
 from datetime import date, timedelta
@@ -44,10 +45,13 @@ def project_records(legacy: ModuleType, notes: list[Any], results: list[Any]) ->
         metadata = note.metadata if note else {}
         issues = []
         if result.status == "abnormal":
+            message = " ".join(result.notes) or "프로젝트 브리핑 생성에 실패했습니다."
             issues.append(
                 {
                     "code": "BRIEFING_ABNORMAL",
-                    "message": " ".join(result.notes) or "프로젝트 브리핑 생성에 실패했습니다.",
+                    # Provider stderr can be unexpectedly large. Keep the
+                    # public canonical error within its documented limit.
+                    "message": message[:1000],
                     "subject_id": result.briefing_id,
                 }
             )
@@ -153,9 +157,11 @@ def main() -> int:
     services = legacy.load_notes(vault / "03_Services")
     config = {
         "runner": {
-            "command": [],
-            "timeout_seconds": 600,
-            "parallel_projects": 3,
+            # Provider selection remains in APS Core; the extension invokes a
+            # fixed bridge and cannot choose a model, endpoint or executable.
+            "command": [sys.executable, "-m", "aps_server.ai_bridge", "--schema", "briefing"],
+            "timeout_seconds": int(os.environ.get("APS_AI_TIMEOUT_SECONDS", "600")),
+            "parallel_projects": int(os.environ.get("APS_AI_PARALLEL_REQUESTS", "3")),
         }
     }
     results = legacy.run_project_briefings(

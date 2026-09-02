@@ -1,0 +1,16 @@
+services:
+  aps-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.codex
+      args:
+        APS_SERVER_BASE: "${APS_SERVER_BASE:-aps-server:local}"
+        CODEX_VERSION: "${CODEX_VERSION:-0.149.1}"
+    image: aps-server-codex:local
+    environment:
+      CODEX_HOME: /codex-home
+    volumes:
+      - "${APS_CODEX_HOME_MOUNT:-aps-codex-home}:/codex-home"
+
+volumes:
+  aps-codex-home:

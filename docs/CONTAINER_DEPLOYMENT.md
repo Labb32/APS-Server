@@ -76,7 +76,43 @@ APS_INITIAL_EXTENSIONS=briefing
 
 빈 값이면 Core-only 서버로 시작한다. 임의 URL이나 community package는 설치할 수 없다.
 
-## 4. 선택형 aps-index 연결
+## 4. AI provider 선택
+
+APS Server는 AI Agent 의존 서비스이므로 최초 배포에서 Core AI gateway provider를 반드시 하나 선택한다. 기본 provider는 없으며 `.env` 또는 mount한 `APS_CONFIG_FILE`에서 설정한다.
+
+Codex를 선택할 때:
+
+```dotenv
+APS_AI_PROVIDER=codex
+APS_CODEX_HOME_MOUNT=aps-codex-home
+```
+
+기본 APS Server image는 Python Core runtime이며 Node.js와 Codex CLI를 포함하지 않는다. Codex adapter는 별도 파생 image로 빌드하고 Codex Compose override를 함께 사용한다.
+
+```bash
+docker compose build aps-server
+docker compose -f compose.yaml -f compose.codex.yaml build aps-server
+docker compose -f compose.yaml -f compose.codex.yaml up -d
+```
+
+첫 명령은 `Dockerfile.codex`가 기반으로 사용할 `aps-server:local`을 만든다. Codex 버전은 필요할 때 `CODEX_VERSION`, 기반 image는 `APS_SERVER_BASE`로 고정할 수 있다. `/codex-home` volume도 override를 사용할 때만 생성된다.
+
+별도 vLLM 또는 OpenAI 호환 서비스를 사용할 때는 같은 container network의 base URL과 서버 관리자가 고정한 model을 설정한다.
+
+```dotenv
+APS_AI_PROVIDER=openai-compatible
+APS_AI_BASE_URL=http://vllm:8000/v1
+APS_AI_MODEL=Qwen/Qwen3-8B
+APS_AI_STRUCTURED_OUTPUT=true
+```
+
+별도 Agent 서비스는 `APS_AI_PROVIDER=agent-http`와 task endpoint의 정확한 URL을 사용한다. 인증이 필요하면 Git에 포함되지 않는 env 또는 secret mount에서 `APS_AI_API_KEY`를 전달한다. 공개 API 요청자는 provider, URL, model과 credential을 지정할 수 없다.
+
+`APS_AI_PROVIDER`가 없거나 빈 값이면 container bootstrap이 실패한다. `openai-compatible`은 `APS_AI_BASE_URL`과 `APS_AI_MODEL`, `agent-http`는 `APS_AI_BASE_URL`이 함께 필요하다. Codex를 선택했지만 실행 파일이 없을 때도 bootstrap이 중단된다. bootstrap을 거치지 않고 Uvicorn을 직접 실행한 개발 환경에서는 같은 문제가 readiness 실패로 표시된다.
+
+전체 provider 계약과 호환 모드는 [AI provider 설정](AI_PROVIDERS.md)을 참고한다.
+
+## 5. 선택형 aps-index 연결
 
 ```dotenv
 APS_INDEX_URL=http://aps-index:8090
@@ -99,7 +135,7 @@ services:
 
 `aps-index`는 외부 port를 공개하지 않고 Docker 내부 network에서만 연결하는 것을 기본으로 한다.
 
-## 5. Scheduler 설정 mount
+## 6. Scheduler 설정 mount
 
 기본 Compose는 다음 파일을 read-only로 mount한다.
 
@@ -121,7 +157,7 @@ APS_SCHEDULE_OVERRIDES_PATH=/config/schedule-overrides.json
 APS_CONFIG_MOUNT=/srv/aps/config
 ```
 
-## 6. Port와 Nginx
+## 7. Port와 Nginx
 
 ```dotenv
 APS_HTTP_PORT=8080
@@ -146,18 +182,18 @@ location /aps/ {
 
 외부에서 직접 접근해야 할 때만 `APS_BIND_HOST=0.0.0.0`으로 바꾸고 TLS reverse proxy, VPN 또는 방화벽을 적용한다. 다른 Compose service가 접근할 때는 host port 대신 `http://aps-server:8080`을 사용한다.
 
-## 7. 영속 데이터
+## 8. 영속 데이터
 
 | Mount | 기본값 | 내용 |
 |---|---|---|
 | `/vault` | `aps-vault` | local/clone/mounted APS Vault |
 | `/data` | `aps-data` | Job, content, Scheduler state, 설치된 확장 |
-| `/codex-home` | `aps-codex-home` | Codex 인증과 설정 |
+| `/codex-home` | `aps-codex-home` | `compose.codex.yaml`을 적용한 Codex runtime의 인증과 설정 |
 | `/config` | `./deploy/config:ro` | APS env와 Scheduler 설정 |
 
 named volume을 제거하면 해당 영속 데이터도 사라질 수 있다. 운영 환경에서는 Vault remote 또는 별도 backup을 준비한다.
 
-## 8. 실행 확인
+## 9. 실행 확인
 
 ```bash
 docker compose config
@@ -173,4 +209,6 @@ curl http://127.0.0.1:8080/health/ready \
   -H "Authorization: Bearer $APS_OPERATOR_TOKEN"
 ```
 
-`health/ready`는 Vault와 token 설정, 활성 확장 실행 의존성을 확인한다.
+`health/ready`는 Vault와 token 설정, 활성 확장 및 선택된 AI provider의 필수 설정을 확인한다. 외부 provider에 실제 생성 요청을 보내지는 않는다.
+
+개인 서버에서 공개 전 검증을 수행할 때는 [Pre-release QA](PRE_RELEASE_QA.md)의 Core-only smoke flow부터 시작해 Git 안전 경계, extension, 장애 복구와 24시간 soak 순서로 진행한다.

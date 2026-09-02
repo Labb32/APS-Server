@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import AnyHttpUrl, Field
+from pydantic import AnyHttpUrl, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,6 +18,14 @@ class Settings(BaseSettings):
     official_extensions_path: Path = Path("extensions")
     initial_extensions: str = ""
     index_url: AnyHttpUrl | None = None
+    ai_provider: Literal["codex", "openai-compatible", "agent-http"]
+    ai_base_url: AnyHttpUrl | None = None
+    ai_api_key: SecretStr | None = None
+    ai_model: str = ""
+    ai_timeout_seconds: int = Field(default=600, ge=10, le=7200)
+    ai_parallel_requests: int = Field(default=3, ge=1, le=8)
+    ai_max_input_chars: int = Field(default=200000, ge=1000, le=2000000)
+    ai_structured_output: bool = True
     config_file: Path | None = None
     http_host: str = "0.0.0.0"
     http_port: int = Field(default=8080, ge=1, le=65535)
@@ -34,6 +42,24 @@ class Settings(BaseSettings):
     scheduler_misfire_lookback_minutes: int = Field(default=1440, ge=1, le=10080)
     schedules_path: Path | None = None
     schedule_overrides_path: Path | None = None
+
+    @field_validator("ai_base_url")
+    @classmethod
+    def reject_provider_url_credentials(cls, value: AnyHttpUrl | None) -> AnyHttpUrl | None:
+        if value is not None and (value.username or value.password):
+            raise ValueError("APS_AI_BASE_URL must not contain credentials; use APS_AI_API_KEY")
+        return value
+
+    @model_validator(mode="after")
+    def require_selected_provider_configuration(self) -> "Settings":
+        if self.ai_provider == "openai-compatible":
+            if self.ai_base_url is None:
+                raise ValueError("APS_AI_BASE_URL is required when APS_AI_PROVIDER=openai-compatible")
+            if not self.ai_model.strip():
+                raise ValueError("APS_AI_MODEL is required when APS_AI_PROVIDER=openai-compatible")
+        elif self.ai_provider == "agent-http" and self.ai_base_url is None:
+            raise ValueError("APS_AI_BASE_URL is required when APS_AI_PROVIDER=agent-http")
+        return self
 
     @property
     def resolved_schedules_path(self) -> Path:

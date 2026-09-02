@@ -1,14 +1,39 @@
+# Local configuration and secrets
 .env
-deploy/config/aps.env
+.env.*
+!.env.example
+/deploy/config/aps.env
+
+# Python environments and caches
 .venv/
+venv/
 __pycache__/
-.pytest_cache/
 *.py[cod]
-data/
-dist/
-build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+
+# Coverage, logs and packaging output
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.log
+/build/
+/dist/
 *.egg-info/
+
+# APS runtime data and local Vault context links
+/data/
 /.brief/
 /tasks/
-.proposal-vault/
-.proposal-vault.zip
+/.proposal-vault/
+/.proposal-vault.zip
+
+# Editor and operating-system metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

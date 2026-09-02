@@ -9,7 +9,7 @@
 3. 자유로운 이름의 Task 문서 폴더를 함께 둔다.
 4. `02_Projects/<프로젝트>.md`에 `status: In_Progress`와 `briefing_id`를 설정한다.
 5. 개발 프로젝트에서 `.brief`와 Task 폴더를 ignore한다.
-6. 필요하면 [`05_ProjectContexts/README.md`](../../05_ProjectContexts/README.md)에 따라 링크를 만든다.
+6. 필요하면 현재 Vault 템플릿의 [`05_ProjectContexts/README.md`](../../../../vault-template/05_ProjectContexts/README.md)에 따라 링크를 만든다.
 7. `py scripts/daily_briefing.py --project <briefing_id> --dry-run --no-pull`로 확인한다.
 
 브리핑은 로컬 개발 프로젝트나 `.aps.local.json` 경로가 없어도 실행된다. `.aps.local.json`은 링크할 프로젝트 경로, 사용자 지정 실행기와 병렬도만 기록한다.
@@ -30,5 +30,4 @@
 }
 ```
 
-상세 실행 방법은 [`98_Documents/APS/DAILY_BRIEFING.md`](../../98_Documents/APS/DAILY_BRIEFING.md)를 참고한다.
-
+상세 실행 방법은 보존된 [`DAILY_BRIEFING.md`](../docs/DAILY_BRIEFING.md)를 참고한다.

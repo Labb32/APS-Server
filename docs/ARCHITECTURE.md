@@ -64,6 +64,20 @@ Core가 소유하는 책임:
 
 Core는 요청자에게 shell 명령, 실행 파일, Vault 경로, AI prompt, 모델명 또는 Codex 인자를 선택하게 하지 않는다.
 
+AI를 사용하는 공식 확장은 vendor SDK나 CLI를 직접 선택하지 않고 고정 bridge를 호출한다.
+
+```text
+official extension
+  → aps_server.ai_bridge (고정 schema ID + stdin/stdout)
+  → Core AIGateway
+      ├─ codex: 고정 read-only CLI
+      ├─ openai-compatible: vLLM/OpenAI chat completions
+      └─ agent-http: APS task JSON contract
+  → Core Pydantic output validation
+```
+
+provider, endpoint, model과 credential은 서버 시작 설정으로만 결정한다. 기본 provider는 없으며 운영자가 `codex`, `openai-compatible`, `agent-http` 중 하나를 명시적으로 선택해야 한다. provider 오류나 schema 불일치는 해당 생성 결과를 게시하지 않으며 직전 정상 Content를 유지한다.
+
 내장 Scheduler는 Core `schedules.json`, 설치된 확장 manifest와 사용자 `schedule-overrides.json`을 합쳐 숫자 5필드 cron을 구성하고 등록된 고정 Job만 bounded in-process queue에 넣는다. schedule ID와 예정 시각으로 중복 실행을 막고, 서버 시작 시 queued Job은 다시 등록하며 진행 중이던 Job은 안전한 실패로 전환한다. 외부 queue와 다중 web process 공유는 지원하지 않는다.
 
 ## 4. Content 생성과 조회
@@ -207,6 +221,6 @@ Idea 전용 경계 밖의 승인 전 원본 이동·삭제·덮어쓰기와 기�
 - 역할별 정적 token만 지원
 - 확장 update·disable과 checksum/서명 검증 미구현
 - 공식 briefing 확장이 정규화된 Core 입력 대신 Vault 문서를 직접 읽는 전환 구조
-- briefing 확장이 Core AI gateway 대신 고정 Codex CLI adapter를 직접 사용하는 전환 구조
+- 공식 briefing 확장이 정규화된 Core 입력 대신 Vault 문서를 직접 읽는 전환 구조
 
 Vault의 기존 브리핑 코드와 문서는 삭제하지 않고 `extensions/briefing/legacy`에 복사해 보존했다. APS Server의 활성 실행 경로는 Vault 내부 script가 아니라 `extensions/briefing/entrypoint.py`다.

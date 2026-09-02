@@ -88,7 +88,7 @@ APS Server는 IP, Origin 또는 proxy header를 사용자 인증 근거로 사�
 | `422` | `REQUEST_VALIDATION_FAILED` | body, path 또는 query schema 오류 |
 | `500` | `CONTENT_INVALID` | 저장 JSON의 schema/checksum 오류 |
 | `500` | `INTERNAL_ERROR` | 분류되지 않은 서버 오류 |
-| `503` | `DEPENDENCY_NOT_READY` | 설정, Codex 또는 공식 확장 미준비 |
+| `503` | `DEPENDENCY_NOT_READY` | 설정, 선택된 AI provider 또는 공식 확장 미준비 |
 | `503` | `JOB_QUEUE_UNAVAILABLE` | 내장 queue가 가득 찼거나 종료 중 |
 | `503` | `OPERATION_NOT_AVAILABLE` | 필요한 공식 확장이 설치되지 않음 |
 
@@ -106,11 +106,11 @@ APS Server는 IP, Origin 또는 proxy header를 사용자 인증 근거로 사�
 
 ### `GET /health/ready`
 
-Token과 Vault 설정을 확인한다. 확장이 없는 Core-only 서버에서는 Codex나 briefing 파일을 요구하지 않는다. `briefing`이 활성화된 경우에만 Codex CLI와 package 필수 파일을 추가 확인한다.
+Token, Vault 설정과 명시적으로 선택한 AI provider의 준비 상태를 확인한다. AI provider는 Core-only 서버에서도 필수이며, `briefing`이 활성화된 경우에는 package 필수 파일도 추가 확인한다.
 
 성공 `200`: `{"status":"ready"}`
 
-실패: `401 AUTHENTICATION_REQUIRED`, `503 DEPENDENCY_NOT_READY`. `503`의 `details[0]`에는 `configured`, `codex`, `briefing_installed`, `brief_extension`, `missing_brief_files`가 포함된다.
+실패: `401 AUTHENTICATION_REQUIRED`, `503 DEPENDENCY_NOT_READY`. `503`의 `details[0]`에는 `configured`, 비밀값을 제외한 `ai`, `briefing_installed`, `brief_extension`, `missing_brief_files`가 포함된다.
 
 ### `GET /v1/operations`
 

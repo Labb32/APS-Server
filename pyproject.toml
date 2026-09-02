@@ -6,7 +6,20 @@ build-backend = "setuptools.build_meta"
 name = "aps-server"
 version = "0.1.0"
 description = "FastAPI service for canonical APS Vault content and official extensions"
+readme = "README.md"
 requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [
+  { name = "Labb32" },
+]
+keywords = ["aps", "vault", "fastapi", "scheduler", "knowledge-management"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Framework :: FastAPI",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+]
 dependencies = [
   "fastapi==0.141.1",
   "pydantic-settings==2.15.0",
@@ -22,6 +35,12 @@ dev = [
 
 [project.scripts]
 aps = "aps_server.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Labb32/aps-server"
+Repository = "https://github.com/Labb32/aps-server"
+Documentation = "https://github.com/Labb32/aps-server/tree/main/docs"
+Issues = "https://github.com/Labb32/aps-server/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

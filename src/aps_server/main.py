@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import hmac
 import secrets
-import shutil
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -20,6 +19,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from .ai_gateway import AIGateway
 from .api_support import ContentAPIError
 from .brief_extension import BriefExtension
 from .config import Settings
@@ -48,6 +48,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     extensions = ExtensionRegistry(settings.extensions_path)
     runner = JobRunner(settings, store, content_store, vault)
     scheduler = Scheduler(settings, store, runner, extensions)
+    ai_gateway = AIGateway(settings)
     bearer = HTTPBearer(auto_error=False)
 
     @asynccontextmanager
@@ -166,10 +167,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/health/ready")
     def ready(_: str = Depends(authenticate)) -> dict[str, object]:
         briefing_installed = extensions.is_installed("briefing")
-        codex_ready = not briefing_installed or shutil.which("codex") is not None
+        ai_ready, ai_status = ai_gateway.readiness()
         missing_brief_files = brief.missing_files() if briefing_installed else []
-        briefing_ready = not missing_brief_files
-        if not settings.configured or not codex_ready or not briefing_ready:
+        briefing_ready = not briefing_installed or not missing_brief_files
+        provider_ready = ai_ready
+        if not settings.configured or not provider_ready or not briefing_ready:
             raise ContentAPIError(
                 status.HTTP_503_SERVICE_UNAVAILABLE,
                 "DEPENDENCY_NOT_READY",
@@ -177,7 +179,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 [
                     {
                     "configured": settings.configured,
-                    "codex": codex_ready,
+                    "ai": ai_status,
                     "brief_extension": briefing_ready,
                     "briefing_installed": briefing_installed,
                     "missing_brief_files": missing_brief_files,

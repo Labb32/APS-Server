@@ -19,7 +19,7 @@ aps extensions install briefing
 - 확장은 Git pull, commit, push와 HTML 생성을 수행하지 않는다.
 - 출력은 일일 브리핑 canonical `data` 후보 JSON뿐이다.
 - APS Server가 최종 schema, metadata와 checksum을 검증하고 ContentStore에 게시한다.
-- 프로젝트별 AI 실행은 현재 고정 Codex CLI adapter를 사용하는 전환 구현이다.
+- 프로젝트별 AI 실행은 고정 `aps_server.ai_bridge`를 통해 Core AI gateway에 위임한다.
 
 ## 디렉터리
 
@@ -36,7 +36,7 @@ briefing/
    └─ docs/
 ```
 
-`legacy/`는 Vault에서 복사한 원본과 문서다. 활성 진입점은 `entrypoint.py`이며 legacy 모듈의 문서 읽기와 Codex 응답 parsing 부분만 재사용한다.
+`legacy/`는 Vault에서 복사한 원본과 문서다. 활성 진입점은 `entrypoint.py`이며 legacy 모듈의 문서 읽기와 구조화 응답 parsing 부분만 재사용한다.
 
 ## 확인된 의존성
 
@@ -44,7 +44,7 @@ briefing/
 - 연결된 APS Vault의 `02_Projects`, `03_Services`, `05_ProjectContexts`
 - Project 문서의 `briefing_id`
 - `05_ProjectContexts/<briefing_id>/.brief/brief.md`
-- 고정 Codex CLI와 `schemas/briefing_response.schema.json`
+- APS Core AI bridge와 `schemas/briefing_response.schema.json`
 
 다음 legacy 기능은 활성 진입점에서 사용하지 않는다.
 
@@ -53,4 +53,6 @@ briefing/
 - HTML 생성과 브라우저 실행
 - Vault 내부 script 위치를 기준으로 한 실행
 
-향후 Core AI gateway가 준비되면 Codex subprocess도 확장에서 제거하고 정규화 입력과 provider 결과만 주고받도록 변경한다.
+provider, endpoint, model과 credential은 APS Server 설정에만 존재한다. 확장은 이를 요청 인자나 manifest로 받지 않는다. 지원 provider는 [AI provider 설정](../../docs/AI_PROVIDERS.md)을 따른다.
+
+이 저장소에 포함된 `briefing` package는 APS Server 배포물의 일부로서 루트 [Apache License 2.0](../../LICENSE)과 [NOTICE](../../NOTICE)를 따른다.

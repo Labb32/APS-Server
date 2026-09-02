@@ -54,7 +54,7 @@ pull로 실행기 자체가 갱신되면 새 실행기로 한 번 다시 시작�
 
 ## 로컬 설정
 
-`.aps.local.json`은 선택 사항이다. 없으면 기본 Codex CLI와 병렬도 3을 사용한다.
+`.aps.local.json`은 프로젝트별 legacy runner 설정에만 선택 사항이다. APS Server에서는 AI provider를 `.env` 또는 `APS_CONFIG_FILE`로 명시적으로 선택해야 하며, 이 문서의 runner 예시는 provider 기본값을 의미하지 않는다.
 
 ```json
 {
@@ -91,7 +91,7 @@ Codex는 각 Vault 컨텍스트를 작업 디렉터리로 삼아 `--ephemeral --
 
 Git/코드 조사, 현재 브랜치 판단, 현재 기기에서 개발을 이어서 하라는 권장은 넣지 않는다. 새 템플릿은 `scripts/project_briefing_kit`에 있다.
 
-프로젝트 링크와 새 기기 설정은 [`05_ProjectContexts/README.md`](../../05_ProjectContexts/README.md)를 따른다.
+프로젝트 링크와 새 기기 설정은 현재 Vault 템플릿의 [`05_ProjectContexts/README.md`](../../../../vault-template/05_ProjectContexts/README.md)를 따른다.
 
 ## HTML과 종료 코드
 
@@ -124,4 +124,3 @@ Git/코드 조사, 현재 브랜치 판단, 현재 기기에서 개발을 이어
 ## 서비스 유지보수
 
 활성 서비스는 `last_maintenance + maintenance_interval_days`로 기한을 계산한다. 실제 점검을 완료한 뒤에만 서비스 문서의 `last_maintenance`를 완료일로 갱신한다. `maintenance_interval_days: 0`은 정기 점검 없음이다.
-

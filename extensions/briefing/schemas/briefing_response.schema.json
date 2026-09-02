@@ -5,13 +5,14 @@
   "properties": {
     "today_tasks": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": { "type": "string" },
+      "maxItems": 3
     },
     "notes": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": { "type": "string" },
+      "maxItems": 2
     }
   },
   "required": ["today_tasks", "notes"]
 }
-

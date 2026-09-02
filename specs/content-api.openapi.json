@@ -3,7 +3,7 @@
   "info": {
     "title": "APS Server Content API",
     "version": "0.1.0",
-    "description": "APS Server API for materialized results generated from a connected APS Vault and its brief extension. Content GET endpoints never invoke Codex during the request."
+    "description": "APS Server API for materialized results generated from a connected APS Vault and official extensions. Content GET endpoints never invoke an AI provider during the request."
   },
   "servers": [{"url": "/"}],
   "security": [{"bearerAuth": []}],

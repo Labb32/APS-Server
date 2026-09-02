@@ -1,9 +1,11 @@
-FROM node:22-bookworm-slim
+FROM python:3.12-slim-bookworm
 
-ARG CODEX_VERSION=0.149.1
+LABEL org.opencontainers.image.title="APS Server" \
+      org.opencontainers.image.description="FastAPI runtime for canonical APS Vault content and official extensions" \
+      org.opencontainers.image.source="https://github.com/Labb32/aps-server" \
+      org.opencontainers.image.licenses="Apache-2.0"
 
 ENV PYTHONUNBUFFERED=1 \
-    PATH="/opt/venv/bin:${PATH}" \
     APS_VAULT_PATH=/vault \
     APS_DATA_PATH=/data \
     APS_VAULT_MODE=local \
@@ -11,25 +13,24 @@ ENV PYTHONUNBUFFERED=1 \
     APS_EXTENSIONS_PATH=/data/extensions \
     APS_OFFICIAL_EXTENSIONS_PATH=/opt/aps/official-extensions \
     APS_HTTP_HOST=0.0.0.0 \
-    APS_HTTP_PORT=8080 \
-    CODEX_HOME=/codex-home
+    APS_HTTP_PORT=8080
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates git python3 python3-venv tini \
+    && apt-get install -y --no-install-recommends ca-certificates git tini \
     && rm -rf /var/lib/apt/lists/* \
-    && npm install --global "@openai/codex@${CODEX_VERSION}" \
-    && python3 -m venv /opt/venv
+    && groupadd --system aps \
+    && useradd --system --gid aps --home-dir /nonexistent --shell /usr/sbin/nologin aps
 
 WORKDIR /app
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md LICENSE NOTICE ./
 COPY src ./src
 COPY extensions /opt/aps/official-extensions
 COPY vault-template /opt/aps/vault-template
 RUN pip install --no-cache-dir . \
-    && mkdir -p /vault /data/jobs /data/artifacts /data/work /data/extensions /codex-home /config \
-    && chown -R node:node /app /opt/aps /vault /data /codex-home /config
+    && mkdir -p /vault /data/jobs /data/artifacts /data/work /data/extensions /config \
+    && chown -R aps:aps /app /opt/aps /vault /data /config
 
-USER node
+USER aps
 EXPOSE 8080
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["python3", "-m", "aps_server.bootstrap"]

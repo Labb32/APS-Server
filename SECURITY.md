@@ -1,0 +1,38 @@
+# Security Policy
+
+APS Server는 개인 Vault, 인증 token과 선택형 AI provider credential을 다루는 네트워크 서비스다. 현재 `0.1.x`는 개인 서버 검증 단계의 pre-release이며, 인터넷에 직접 노출하는 운영을 권장하지 않는다.
+
+## 지원 범위
+
+| Version | Security updates |
+|---|---|
+| `0.1.x` | 개인 서버 QA 기간 동안 최신 commit만 지원 |
+| `< 0.1` | 지원하지 않음 |
+
+공개 release 이후에는 최신 minor release와 지원 종료 일정을 이 문서에 명시한다.
+
+## 취약점 제보
+
+인증 우회, Vault 경로 탈출, 임의 명령 실행, secret 노출 또는 승인되지 않은 Git 쓰기를 발견했다면 공개 Issue를 만들지 않는다. 이 저장소의 GitHub **Security → Report a vulnerability** 기능으로 비공개 제보한다. 저장소 공개 전에 관리자는 GitHub private vulnerability reporting을 활성화해야 한다.
+
+제보에는 가능한 범위에서 다음 내용을 포함한다.
+
+- 영향을 받는 version 또는 commit
+- 재현 조건과 최소 재현 절차
+- 예상 영향과 공격자가 필요한 권한
+- log와 응답에서 token, credential, 개인 Vault 내용은 제거한 증거
+- 알려진 완화책
+
+유효한 제보를 확인하면 접수 사실, 영향 범위와 수정 계획을 비공개 채널로 공유한다. 수정과 배포 준비가 끝나기 전에는 상세 재현 절차를 공개하지 않는다.
+
+## 운영자 보안 기준
+
+- `APS_OPERATOR_TOKEN`, `APS_VIEWER_TOKEN`, `APS_SCHEDULER_TOKEN`에 서로 다른 충분히 긴 무작위 값을 사용한다.
+- `.env`, provider API key, Git credential과 Codex home을 Git 또는 container image에 포함하지 않는다.
+- 기본 `127.0.0.1` bind를 유지하고 외부 접근에는 TLS reverse proxy 또는 개인 VPN을 사용한다.
+- 브라우저용 HTML upstream에 token을 주입한다면 proxy 자체 인증 없이 공개하지 않는다.
+- `/vault`, `/data`, `/codex-home`의 host 권한과 backup을 별도로 관리한다.
+- 공식 extension만 설치하고 image tag와 Codex 또는 AI model version을 운영자가 고정한다.
+- Vault sync 실패, dirty worktree와 diverged branch를 자동 merge·reset·force push로 해결하지 않는다.
+
+배포 전 검증은 [Pre-release QA](docs/PRE_RELEASE_QA.md)를 따른다.

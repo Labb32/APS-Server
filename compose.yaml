@@ -2,8 +2,6 @@ services:
   aps-server:
     build:
       context: .
-      args:
-        CODEX_VERSION: "0.149.1"
     image: aps-server:local
     restart: unless-stopped
     env_file:
@@ -19,7 +17,6 @@ services:
       APS_SCHEDULE_OVERRIDES_PATH: "${APS_SCHEDULE_OVERRIDES_PATH:-/config/schedule-overrides.json}"
       APS_HTTP_HOST: 0.0.0.0
       APS_HTTP_PORT: "${APS_HTTP_PORT:-8080}"
-      CODEX_HOME: /codex-home
     ports:
       - "${APS_BIND_HOST:-127.0.0.1}:${APS_BIND_PORT:-8080}:${APS_HTTP_PORT:-8080}"
     expose:
@@ -27,7 +24,6 @@ services:
     volumes:
       - "${APS_VAULT_MOUNT:-aps-vault}:/vault"
       - aps-data:/data
-      - "${APS_CODEX_HOME_MOUNT:-aps-codex-home}:/codex-home"
       - "${APS_CONFIG_MOUNT:-./deploy/config}:/config:ro"
     healthcheck:
       test: ["CMD", "python3", "-c", "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('APS_HTTP_PORT', '8080') + '/health/live', timeout=3)"]
@@ -41,4 +37,3 @@ services:
 volumes:
   aps-vault:
   aps-data:
-  aps-codex-home:
