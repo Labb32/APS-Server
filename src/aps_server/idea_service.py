@@ -16,6 +16,7 @@ from typing import Any
 
 from .content_models import (
     IdeaCreateRequest,
+    IdeaCurationPlan,
     IdeaItem,
     IdeaMergeRequest,
     IdeaSet,
@@ -252,12 +253,37 @@ class IdeaService:
                 raise
             return updated, commit
 
-    def curate(self) -> dict[str, list[dict[str, Any]]]:
+    def curate(self, plan: IdeaCurationPlan | None = None) -> dict[str, list[dict[str, Any]]]:
         with self._lock, self.vault.locked():
             self.vault.require_clean()
             pending = self.pending()
             if not pending.ideas and not pending.idea_sets:
                 return load_idea_catalog(self.vault.root)
+            committed_catalog = IdeasData.model_validate(load_idea_catalog(self.vault.root))
+            pending_ids = {item.idea_id for item in pending.ideas}
+            available_ids = pending_ids | {item.idea_id for item in committed_catalog.ideas}
+            normalizations = {item.source_idea_id: item for item in (plan.normalized_ideas if plan else [])}
+            if len(normalizations) != len(plan.normalized_ideas if plan else []):
+                raise IdeaServiceError("curation plan contains duplicate normalized Idea IDs", "IDEA_CURATION_INVALID")
+            unknown_normalizations = sorted(set(normalizations) - pending_ids)
+            if unknown_normalizations:
+                raise IdeaServiceError("curation plan normalizes unknown or committed Ideas", "IDEA_CURATION_INVALID")
+            merge_groups: set[frozenset[str]] = set()
+            for candidate in plan.merge_candidates if plan else []:
+                if not set(candidate.source_idea_ids).issubset(available_ids) or not pending_ids.intersection(candidate.source_idea_ids):
+                    raise IdeaServiceError("merge candidate contains invalid source Ideas", "IDEA_CURATION_INVALID")
+                group = frozenset(candidate.source_idea_ids)
+                if group in merge_groups:
+                    raise IdeaServiceError("curation plan contains duplicate merge candidates", "IDEA_CURATION_INVALID")
+                merge_groups.add(group)
+            set_groups: set[frozenset[str]] = set()
+            for candidate in plan.set_candidates if plan else []:
+                if not set(candidate.member_idea_ids).issubset(available_ids) or not pending_ids.intersection(candidate.member_idea_ids):
+                    raise IdeaServiceError("Idea Set candidate contains invalid member Ideas", "IDEA_CURATION_INVALID")
+                group = frozenset(candidate.member_idea_ids)
+                if group in set_groups:
+                    raise IdeaServiceError("curation plan contains duplicate Idea Set candidates", "IDEA_CURATION_INVALID")
+                set_groups.add(group)
             destinations: list[Path] = []
             originals: dict[Path, bytes | None] = {}
             source_paths: list[Path] = []
@@ -273,7 +299,25 @@ class IdeaService:
                         source_paths.append(source)
                         continue
                     originals[destination] = destination.read_bytes() if destination.exists() else None
-                    committed = item.model_copy(update={"status": "incubator", "storage": "vault", "commit_status": "committed"})
+                    normalized = normalizations.get(item.idea_id)
+                    changes = (
+                        {
+                            "title": normalized.title,
+                            "keywords": normalized.keywords,
+                            "summary": normalized.summary,
+                        }
+                        if normalized is not None
+                        else {}
+                    )
+                    committed = item.model_copy(
+                        update={
+                            **changes,
+                            "status": "incubator",
+                            "storage": "vault",
+                            "commit_status": "committed",
+                            "updated_at": datetime.now(UTC),
+                        }
+                    )
                     _atomic_write(
                         destination,
                         _render_idea(
@@ -285,6 +329,31 @@ class IdeaService:
                     )
                     destinations.append(destination)
                     source_paths.append(source)
+                for candidate in plan.merge_candidates if plan else []:
+                    now = datetime.now(UTC)
+                    merged = IdeaItem(
+                        idea_id=_id("idea_"),
+                        title=candidate.title,
+                        keywords=candidate.keywords,
+                        summary=candidate.summary,
+                        status="incubator",
+                        idea_set_ids=[],
+                        updated_at=now,
+                        storage="vault",
+                        commit_status="committed",
+                    )
+                    destination = self.vault.root / IDEA_DIRECTORY / f"{merged.idea_id}.md"
+                    originals[destination] = None
+                    _atomic_write(
+                        destination,
+                        _render_idea(
+                            merged,
+                            now.date().isoformat(),
+                            merge_sources=candidate.source_idea_ids,
+                        ),
+                    )
+                    destinations.append(destination)
+                    available_ids.add(merged.idea_id)
                 for item in pending.idea_sets:
                     source = self.inbox / f"{item.idea_set_id}.md"
                     metadata = _frontmatter(source)
@@ -297,8 +366,28 @@ class IdeaService:
                     )
                     destinations.append(destination)
                     source_paths.append(source)
+                for candidate in plan.set_candidates if plan else []:
+                    now = datetime.now(UTC)
+                    suggested = IdeaSet(
+                        idea_set_id=_id("idea_set_"),
+                        title=candidate.title,
+                        keywords=candidate.keywords,
+                        summary=candidate.summary,
+                        status="suggested",
+                        member_idea_ids=candidate.member_idea_ids,
+                        storage="vault",
+                        commit_status="committed",
+                    )
+                    destination = self.vault.root / IDEA_SET_DIRECTORY / f"{suggested.idea_set_id}.md"
+                    originals[destination] = None
+                    _atomic_write(destination, _render_set(suggested, now.date().isoformat()))
+                    destinations.append(destination)
                 catalog = load_idea_catalog(self.vault.root)
-                self.vault.commit_paths(destinations, f"ideas: curate {len(destinations)} inbox item(s)")
+                if destinations:
+                    self.vault.commit_paths(
+                        destinations,
+                        f"ideas: curate {len(source_paths)} inbox item(s), {len(destinations)} document(s)",
+                    )
             except Exception:
                 for path, content in originals.items():
                     if content is None:

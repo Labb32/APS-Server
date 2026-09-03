@@ -177,7 +177,7 @@ def build_idea_router(
         try:
             item, commit = ideas.update(idea_id, request)
             if commit:
-                publications = content_store.prepare_operation("ideas.index.refresh", load_idea_catalog(vault.root), commit)
+                publications = content_store.prepare_ideas(load_idea_catalog(vault.root), commit)
                 content_store.publish(publications)
             return IdeaMutationResponse(idea=item, vault_commit=commit)
         except (OSError, ValueError, IdeaServiceError, VaultError) as error:

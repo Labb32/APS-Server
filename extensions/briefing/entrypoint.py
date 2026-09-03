@@ -134,10 +134,11 @@ def service_records(legacy: ModuleType, notes: list[Any], today: date) -> list[d
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="APS official briefing extension")
     parser.add_argument("--vault", type=Path, required=True)
+    parser.add_argument("--aps-operation", choices={"briefing.daily", "briefing.project", "service.maintenance_due"})
     parser.add_argument("--today")
     parser.add_argument("--project")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--json", action="store_true", required=True)
+    parser.add_argument("--json", action="store_true")
     return parser.parse_args()
 
 
@@ -147,6 +148,25 @@ def main() -> int:
     if hasattr(sys.stderr, "reconfigure"):
         sys.stderr.reconfigure(encoding="utf-8")
     args = parse_args()
+    protocol_request: dict[str, Any] = {}
+    if args.aps_operation:
+        try:
+            protocol_request = json.loads(sys.stdin.read())
+        except json.JSONDecodeError as error:
+            raise RuntimeError("APS extension request is not valid JSON") from error
+        if not isinstance(protocol_request, dict) or protocol_request.get("operation") != args.aps_operation:
+            raise RuntimeError("APS extension operation does not match its request")
+        if args.aps_operation == "briefing.project":
+            project_ids = protocol_request.get("context", {}).get("project_ids", [])
+            if not isinstance(project_ids, list) or len(project_ids) != 1 or not isinstance(project_ids[0], str):
+                raise RuntimeError("briefing.project requires one project ID")
+            args.project = project_ids[0]
+        if args.aps_operation == "service.maintenance_due":
+            requested_date = protocol_request.get("input", {}).get("date")
+            if requested_date is not None and not isinstance(requested_date, str):
+                raise RuntimeError("service maintenance date must be an ISO date")
+            args.today = requested_date
+            args.dry_run = True
     vault = args.vault.resolve()
     if not vault.is_dir():
         raise RuntimeError(f"APS Vault directory does not exist: {vault}")
@@ -159,7 +179,13 @@ def main() -> int:
         "runner": {
             # Provider selection remains in APS Core; the extension invokes a
             # fixed bridge and cannot choose a model, endpoint or executable.
-            "command": [sys.executable, "-m", "aps_server.ai_bridge", "--schema", "briefing"],
+            "command": [
+                sys.executable,
+                "-m",
+                "aps_server.ai_bridge",
+                "--task",
+                "briefing.project-analyze",
+            ],
             "timeout_seconds": int(os.environ.get("APS_AI_TIMEOUT_SECONDS", "600")),
             "parallel_projects": int(os.environ.get("APS_AI_PARALLEL_REQUESTS", "3")),
         }

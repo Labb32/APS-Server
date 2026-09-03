@@ -19,9 +19,9 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .ai_gateway import AIGateway
+from .agent import build_agent_executor
+from .agent.providers import provider_status
 from .api_support import ContentAPIError
-from .brief_extension import BriefExtension
 from .config import Settings
 from .content_api import build_content_router
 from .content_store import ContentStore
@@ -29,9 +29,10 @@ from .extensions import ExtensionListResponse, ExtensionRegistry
 from .html_renderer import HTMLRenderer
 from .idea_api import build_idea_router
 from .idea_service import IdeaService
-from .models import CreateJobRequest, ErrorResponse, Job, JobAccepted, JobStatus, OperationName
-from .operations import POLICIES
+from .models import CreateJobRequest, ErrorResponse, Job, JobAccepted, JobStatus
+from .operations import build_operation_registry
 from .runner import JobRunner
+from .runtime import OperationRegistryError
 from .scheduler import Scheduler, SchedulerStatus
 from .store import JobStore
 from .vault import VaultRepository
@@ -44,11 +45,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     html_renderer = HTMLRenderer()
     vault = VaultRepository(settings.vault_path)
     ideas = IdeaService(vault, settings.sync_before_job)
-    brief = BriefExtension(settings.extensions_path)
     extensions = ExtensionRegistry(settings.extensions_path)
-    runner = JobRunner(settings, store, content_store, vault)
-    scheduler = Scheduler(settings, store, runner, extensions)
-    ai_gateway = AIGateway(settings)
+    agent = build_agent_executor(settings, vault, extensions)
+    operations = build_operation_registry(settings, vault, content_store, extensions, agent)
+    runner = JobRunner(settings, store, content_store, vault, operations)
+    scheduler = Scheduler(settings, store, runner, extensions, operations)
     bearer = HTTPBearer(auto_error=False)
 
     @asynccontextmanager
@@ -78,6 +79,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
         responses=error_responses,
     )
+    app.state.agent_executor = agent
+    app.state.operation_registry = operations
 
     def request_id(request: Request) -> str:
         return str(getattr(request.state, "request_id", "req_" + secrets.token_hex(13).upper()))
@@ -167,9 +170,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/health/ready")
     def ready(_: str = Depends(authenticate)) -> dict[str, object]:
         briefing_installed = extensions.is_installed("briefing")
-        ai_ready, ai_status = ai_gateway.readiness()
-        missing_brief_files = brief.missing_files() if briefing_installed else []
-        briefing_ready = not briefing_installed or not missing_brief_files
+        ai_ready, ai_status = provider_status(settings)
+        # ExtensionRegistry validates every active manifest and its declared
+        # entrypoint/task resources while the application is assembled.
+        missing_brief_files: list[str] = []
+        briefing_ready = True
         provider_ready = ai_ready
         if not settings.configured or not provider_ready or not briefing_ready:
             raise ContentAPIError(
@@ -192,9 +197,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def list_operations(role: str = Depends(authenticate)) -> dict[str, list[dict[str, object]]]:
         return {
             "operations": [
-                {"name": name.value, "write_mode": policy["write_mode"], "enabled": True}
-                for name, policy in POLICIES.items()
-                if role in policy["roles"] and name in extensions.available_operations
+                {
+                    "name": spec.name.value,
+                    "write_mode": spec.write_mode,
+                    "enabled": True,
+                }
+                for spec in operations.for_role(role)
             ]
         }
 
@@ -214,15 +222,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         role: str = Depends(authenticate),
         idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", min_length=8, max_length=128),
     ) -> JobAccepted:
-        policy = POLICIES[request.operation]
-        if role not in policy["roles"]:
-            raise ContentAPIError(status.HTTP_403_FORBIDDEN, "OPERATION_FORBIDDEN", "Operation is not allowed for this role")
-        if request.operation not in extensions.available_operations:
+        try:
+            operation = operations.get(request.operation)
+        except OperationRegistryError as error:
             raise ContentAPIError(
                 status.HTTP_503_SERVICE_UNAVAILABLE,
-                "OPERATION_NOT_AVAILABLE",
+                error.code,
                 "The extension that provides this operation is not installed.",
-            )
+            ) from error
+        if role not in operation.roles:
+            raise ContentAPIError(status.HTTP_403_FORBIDDEN, "OPERATION_FORBIDDEN", "Operation is not allowed for this role")
         if idempotency_key:
             existing = store.find_by_idempotency(role, idempotency_key)
             if existing:

@@ -1,5 +1,7 @@
 # APS Server 아키텍처
 
+Agent 기반 문서 분석과 제한된 Tool 실행을 추가하는 목표 모듈 구조는 [AgentExecutor 설계](AGENT_EXECUTOR_DESIGN.md)를 따른다.
+
 ## 1. 구성 요소
 
 ```text
@@ -9,7 +11,7 @@ clients / cron / reverse proxy
 ┌────────────────────────────────────────────┐
 │ APS Server                                 │
 │ FastAPI · auth · queue · scheduler         │
-│ Vault sync · AI gateway · result store     │
+│ Vault sync · AgentExecutor · result store  │
 │ JSON validation · HTML renderer            │
 │ official extensions                        │
 └──────────────┬─────────────────────────────┘
@@ -64,19 +66,33 @@ Core가 소유하는 책임:
 
 Core는 요청자에게 shell 명령, 실행 파일, Vault 경로, AI prompt, 모델명 또는 Codex 인자를 선택하게 하지 않는다.
 
-AI를 사용하는 공식 확장은 vendor SDK나 CLI를 직접 선택하지 않고 고정 bridge를 호출한다.
+AI를 사용하는 공식 확장은 vendor SDK나 CLI를 직접 선택하지 않고 manifest에 task 계약을 선언하고 Core의 고정 bridge를 호출한다.
 
 ```text
 official extension
-  → aps_server.ai_bridge (고정 schema ID + stdin/stdout)
-  → Core AIGateway
-      ├─ codex: 고정 read-only CLI
-      ├─ openai-compatible: vLLM/OpenAI chat completions
+  → aps_server.ai_bridge (manifest task ID + stdin/stdout)
+  → AgentExecutor
+  → agent.providers
+      ├─ openai: OpenAI Responses API
+      ├─ openai-compatible: vLLM chat completions
       └─ agent-http: APS task JSON contract
   → Core Pydantic output validation
 ```
 
-provider, endpoint, model과 credential은 서버 시작 설정으로만 결정한다. 기본 provider는 없으며 운영자가 `codex`, `openai-compatible`, `agent-http` 중 하나를 명시적으로 선택해야 한다. provider 오류나 schema 불일치는 해당 생성 결과를 게시하지 않으며 직전 정상 Content를 유지한다.
+provider, endpoint, model과 credential은 서버 시작 설정으로만 결정한다. 기본 provider는 없으며 운영자가 `openai`, `openai-compatible`, `agent-http` 중 하나를 명시적으로 선택해야 한다. provider 오류나 schema 불일치는 해당 생성 결과를 게시하지 않으며 직전 정상 Content를 유지한다.
+
+Core는 provider 호출을 `agent/providers.py`로 분리하고 다음 범용 실행 경계를 제공한다.
+
+```text
+Core/extension registered AgentTaskSpec
+  → AgentExecutor
+      ├─ workflow: 구조화 결과 단일 생성과 제한된 schema 재시도
+      └─ tool-loop: ToolAction 또는 FinalAction, 최대 8 step
+  → fixed ToolRegistry capability 검사
+  → validated AgentExecutionResult
+```
+
+AgentExecutor는 Job, Vault sync, Git commit과 Content 게시를 수행하지 않는다. briefing 전용 task, prompt와 schema는 `briefing` 확장이 소유한다.
 
 내장 Scheduler는 Core `schedules.json`, 설치된 확장 manifest와 사용자 `schedule-overrides.json`을 합쳐 숫자 5필드 cron을 구성하고 등록된 고정 Job만 bounded in-process queue에 넣는다. schedule ID와 예정 시각으로 중복 실행을 막고, 서버 시작 시 queued Job은 다시 등록하며 진행 중이던 Job은 안전한 실패로 전환한다. 외부 queue와 다중 web process 공유는 지원하지 않는다.
 
@@ -109,7 +125,7 @@ HTML은 canonical JSON의 viewer다. 별도 HTML 생성 Job을 두지 않고 AI�
 
 확장에 전달할 수 있는 것:
 
-- Core가 정규화한 읽기 전용 문서 데이터
+- Core가 정규화한 읽기 전용 문서 데이터 또는 격리된 read-only 작업 snapshot
 - 논리 ID와 기준 Vault commit
 - 등록된 operation의 schema 입력
 - Core를 통한 AI provider 호출 권한
@@ -186,7 +202,7 @@ Idea request
   → commit 성공 후 Inbox 원본 제거
 ```
 
-이미 commit된 Idea의 제한된 수정은 schema 검증 후 대상 문서만 즉시 commit한다. 새 pending Idea의 수정은 Inbox에만 반영한다. 검증 또는 Git 처리가 실패하면 Inbox를 보존한다. 현재 Core는 raw content의 임시 title/summary 생성과 명시적 통합·Set 후보를 결정적으로 처리하며, AI 기반 자동 요약·중복 분류·Set 추천은 후속 curator 범위다.
+이미 commit된 Idea의 제한된 수정은 schema 검증 후 대상 문서만 즉시 commit한다. 새 pending Idea의 수정은 Inbox에만 반영한다. 검증 또는 Git 처리가 실패하면 Inbox를 보존한다. 현재 Core는 pending Idea와 lexical 유사 후보를 고정 workflow task에 전달하고, AI가 반환한 정규화·중복·Set 후보를 ID/schema/대상 경로 기준으로 검증한 뒤 한 번의 batch commit으로 반영한다. 대규모 semantic 후보 탐색은 후속 `aps-index` 범위다.
 
 Project 작성과 Service 문서 갱신은 다음 승인 절차가 구현된 이후에만 활성화한다.
 
@@ -216,11 +232,10 @@ Idea 전용 경계 밖의 승인 전 원본 이동·삭제·덮어쓰기와 기�
 
 ## 9. 현재 코드의 전환 상태
 
-현재 구현은 아직 다음 과거 구조를 포함한다.
+현재 구현은 아직 다음 전환 구조를 포함한다.
 
 - 역할별 정적 token만 지원
 - 확장 update·disable과 checksum/서명 검증 미구현
-- 공식 briefing 확장이 정규화된 Core 입력 대신 Vault 문서를 직접 읽는 전환 구조
-- 공식 briefing 확장이 정규화된 Core 입력 대신 Vault 문서를 직접 읽는 전환 구조
+- 공식 briefing 확장이 정규화된 Core 입력 대신 원본과 격리된 임시 Vault snapshot을 직접 읽는 전환 구조
 
 Vault의 기존 브리핑 코드와 문서는 삭제하지 않고 `extensions/briefing/legacy`에 복사해 보존했다. APS Server의 활성 실행 경로는 Vault 내부 script가 아니라 `extensions/briefing/entrypoint.py`다.

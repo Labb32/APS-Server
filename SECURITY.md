@@ -28,11 +28,11 @@ APS Server는 개인 Vault, 인증 token과 선택형 AI provider credential을 
 ## 운영자 보안 기준
 
 - `APS_OPERATOR_TOKEN`, `APS_VIEWER_TOKEN`, `APS_SCHEDULER_TOKEN`에 서로 다른 충분히 긴 무작위 값을 사용한다.
-- `.env`, provider API key, Git credential과 Codex home을 Git 또는 container image에 포함하지 않는다.
+- `.env`, provider API key와 Git credential을 Git 또는 container image에 포함하지 않는다.
 - 기본 `127.0.0.1` bind를 유지하고 외부 접근에는 TLS reverse proxy 또는 개인 VPN을 사용한다.
 - 브라우저용 HTML upstream에 token을 주입한다면 proxy 자체 인증 없이 공개하지 않는다.
-- `/vault`, `/data`, `/codex-home`의 host 권한과 backup을 별도로 관리한다.
-- 공식 extension만 설치하고 image tag와 Codex 또는 AI model version을 운영자가 고정한다.
+- `/vault`와 `/data`의 host 권한과 backup을 별도로 관리한다.
+- 공식 extension만 설치하고 image tag와 AI model version을 운영자가 고정한다.
 - Vault sync 실패, dirty worktree와 diverged branch를 자동 merge·reset·force push로 해결하지 않는다.
 
 배포 전 검증은 [Pre-release QA](docs/PRE_RELEASE_QA.md)를 따른다.

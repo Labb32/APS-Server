@@ -10,8 +10,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from .config import Settings
 from .extensions import CORE_OPERATIONS, ExtensionRegistry
 from .models import JobStatus
-from .operations import POLICIES
 from .runner import JobRunner
+from .runtime import OperationRegistry, OperationRegistryError
 from .schedule_models import (
     CronExpression,
     ScheduleConfig,
@@ -57,7 +57,14 @@ LEGACY_EXTENSION_SCHEDULE_IDS = {
 
 
 class Scheduler:
-    def __init__(self, settings: Settings, store: JobStore, runner: JobRunner, extensions: ExtensionRegistry) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        store: JobStore,
+        runner: JobRunner,
+        extensions: ExtensionRegistry,
+        operations: OperationRegistry,
+    ) -> None:
         self.settings = settings
         try:
             ZoneInfo(settings.scheduler_timezone)
@@ -66,6 +73,7 @@ class Scheduler:
         self.store = store
         self.runner = runner
         self.extensions = extensions
+        self.operations = operations
         self.config_path = settings.resolved_schedules_path
         self.overrides_path = settings.resolved_schedule_overrides_path
         self.state_path = settings.data_path / "scheduler-state.json"
@@ -261,10 +269,12 @@ class Scheduler:
 
         config = ScheduleConfig(version=1, schedules=effective)
         for definition in config.schedules:
-            if "scheduler" not in POLICIES[definition.request.operation]["roles"]:
+            try:
+                operation = self.operations.get(definition.request.operation)
+            except OperationRegistryError as error:
+                raise ValueError(f"scheduled operation is not available: {definition.request.operation}") from error
+            if "scheduler" not in operation.roles:
                 raise ValueError(f"operation is not allowed for scheduler: {definition.request.operation}")
-            if definition.request.operation not in self.extensions.available_operations:
-                raise ValueError(f"scheduled operation is not available: {definition.request.operation}")
         self.schedule_sources = sources
         return config
 

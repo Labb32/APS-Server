@@ -587,7 +587,9 @@ Idea 쓰기는 `operator`만 허용한다. 모든 파일명과 Vault 경로는 �
 {"operation":"ideas.curate","input":{},"context":{}}
 ```
 
-`operator`와 내부 `scheduler`만 생성할 수 있다. Job은 서버 소유 Inbox 문서를 다시 schema 검증하고 `01_Ideas`, `01_Idea_Sets`에 한 batch commit으로 게시한다. commit 성공 뒤에만 해당 Inbox 파일을 제거하며 Git push, branch 전환, merge, reset은 하지 않는다. 처리할 문서가 없으면 현재 catalog를 다시 게시하고 새 commit은 만들지 않는다.
+`operator`와 내부 `scheduler`만 생성할 수 있다. Job은 서버 소유 Inbox 문서와 Core가 선택한 lexical 유사 후보를 고정 `ideas.curate-plan` workflow로 분석한다. AI 결과의 source ID, schema, 중복 후보와 대상 경로를 검증한 뒤 `01_Ideas`, `01_Idea_Sets`에 한 batch commit으로 게시한다. commit 성공 뒤에만 해당 Inbox 파일을 제거하며 Git push, branch 전환, merge, reset은 하지 않는다. 처리할 문서가 없으면 현재 catalog를 다시 게시하고 새 commit은 만들지 않는다.
+
+AI provider 또는 구조화 출력 검증이 실패하면 Job은 `PROVIDER_*`, `AGENT_OUTPUT_INVALID` 또는 `IDEA_CURATION_INVALID` 오류로 종료되고 Inbox와 직전 정상 Content를 유지한다.
 
 기본 schedule은 `15 */6 * * *`이며 timezone은 서버 Scheduler 설정을 따른다.
 

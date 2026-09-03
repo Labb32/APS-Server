@@ -19,7 +19,7 @@ aps extensions install briefing
 - 확장은 Git pull, commit, push와 HTML 생성을 수행하지 않는다.
 - 출력은 일일 브리핑 canonical `data` 후보 JSON뿐이다.
 - APS Server가 최종 schema, metadata와 checksum을 검증하고 ContentStore에 게시한다.
-- 프로젝트별 AI 실행은 고정 `aps_server.ai_bridge`를 통해 Core AI gateway에 위임한다.
+- 프로젝트별 AI 실행은 manifest의 `briefing.project-analyze` task를 고정 `aps_server.ai_bridge`를 통해 Core `AgentExecutor`에 위임한다.
 
 ## 디렉터리
 

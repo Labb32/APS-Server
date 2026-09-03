@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import secrets
 import shutil
 from pathlib import Path
@@ -29,6 +30,39 @@ class ExtensionSchedule(BaseModel):
     request: CreateJobRequest
 
 
+class ExtensionAgentTask(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    task_id: str = Field(pattern=r"^[a-z][a-z0-9_.-]{0,127}$")
+    mode: Literal["workflow", "tool-loop"] = "workflow"
+    contract_module: str
+    contract_model: str = Field(pattern=r"^[A-Za-z][A-Za-z0-9_]{0,127}$")
+    prompt_file: str
+    allowed_tools: list[str] = Field(default_factory=list, max_length=20)
+    tool_capabilities: list[str] = Field(default_factory=list, max_length=20)
+    max_steps: int = Field(default=1, ge=1, le=8)
+    max_input_chars: int = Field(default=200_000, ge=1000, le=2_000_000)
+    max_output_chars: int = Field(default=200_000, ge=1000, le=2_000_000)
+    timeout_seconds: int = Field(default=600, ge=10, le=7200)
+
+    @field_validator("contract_module", "prompt_file")
+    @classmethod
+    def package_local_file(cls, value: str) -> str:
+        path = Path(value)
+        if path.is_absolute() or not path.parts or any(part in {"", ".", ".."} for part in path.parts):
+            raise ValueError("extension task files must be package-local paths")
+        return path.as_posix()
+
+    @field_validator("allowed_tools", "tool_capabilities")
+    @classmethod
+    def unique_identifiers(cls, values: list[str]) -> list[str]:
+        if len(values) != len(set(values)):
+            raise ValueError("extension task identifiers must be unique")
+        if any(not re.fullmatch(r"[a-z][a-z0-9_.-]{0,127}", value) for value in values):
+            raise ValueError("extension task identifiers are invalid")
+        return values
+
+
 class ExtensionManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -38,9 +72,11 @@ class ExtensionManifest(BaseModel):
     official: Literal[True]
     aps_api: Literal["1"]
     entrypoint: str
+    resources: list[str] = Field(default_factory=list, max_length=100)
     capabilities: list[str]
     operations: list[OperationName]
     schedules: list[ExtensionSchedule] = Field(default_factory=list)
+    agent_tasks: list[ExtensionAgentTask] = Field(default_factory=list)
     vault_access: Literal["read-only"]
     network: Literal["none", "ai-provider-only"]
     activation: Literal["restart"]
@@ -52,6 +88,17 @@ class ExtensionManifest(BaseModel):
         if path.is_absolute() or len(path.parts) != 1 or value in {".", ".."}:
             raise ValueError("entrypoint must be one package-local filename")
         return value
+
+    @field_validator("resources")
+    @classmethod
+    def safe_resources(cls, values: list[str]) -> list[str]:
+        if len(values) != len(set(values)):
+            raise ValueError("extension resources must be unique")
+        for value in values:
+            path = Path(value)
+            if path.is_absolute() or not path.parts or any(part in {"", ".", ".."} for part in path.parts):
+                raise ValueError("extension resources must be package-local paths")
+        return values
 
     @field_validator("operations")
     @classmethod
@@ -66,6 +113,14 @@ class ExtensionManifest(BaseModel):
         identifiers = [item.schedule_id for item in values]
         if len(identifiers) != len(set(identifiers)):
             raise ValueError("extension schedule IDs must be unique")
+        return values
+
+    @field_validator("agent_tasks")
+    @classmethod
+    def unique_agent_tasks(cls, values: list[ExtensionAgentTask]) -> list[ExtensionAgentTask]:
+        identifiers = [item.task_id for item in values]
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError("extension Agent task IDs must be unique")
         return values
 
 
@@ -95,11 +150,30 @@ def load_manifest(package_root: Path, expected_id: str | None = None) -> Extensi
         raise ValueError("extension entrypoint escapes its package") from error
     if not entrypoint.is_file():
         raise ValueError(f"extension entrypoint is missing: {manifest.entrypoint}")
+    for relative in manifest.resources:
+        resource = (package_root / relative).resolve()
+        try:
+            resource.relative_to(package_root.resolve())
+        except ValueError as error:
+            raise ValueError(f"extension resource escapes its package: {relative}") from error
+        if not resource.is_file():
+            raise ValueError(f"extension resource is missing: {relative}")
     for schedule in manifest.schedules:
         if not schedule.schedule_id.startswith(manifest.id + "."):
             raise ValueError(f"extension schedule must use the {manifest.id}. prefix: {schedule.schedule_id}")
         if schedule.request.operation not in manifest.operations:
             raise ValueError(f"extension schedule references an unowned operation: {schedule.request.operation}")
+    for task in manifest.agent_tasks:
+        if not task.task_id.startswith(manifest.id + "."):
+            raise ValueError(f"extension Agent task must use the {manifest.id}. prefix: {task.task_id}")
+        for relative in (task.contract_module, task.prompt_file):
+            target = (package_root / relative).resolve()
+            try:
+                target.relative_to(package_root.resolve())
+            except ValueError as error:
+                raise ValueError(f"extension Agent task file escapes its package: {relative}") from error
+            if not target.is_file():
+                raise ValueError(f"extension Agent task file is missing: {relative}")
     return manifest
 
 
@@ -131,6 +205,56 @@ class ExtensionRegistry:
 
     def is_installed(self, extension_id: str) -> bool:
         return extension_id in self.manifests
+
+    def agent_task_specs(self) -> list[Any]:
+        import importlib.util
+        import sys
+
+        from pydantic import BaseModel
+
+        from .agent import AgentTaskSpec
+
+        specs: list[AgentTaskSpec] = []
+        seen: set[str] = set()
+        for extension_id, manifest in self.manifests.items():
+            package_root = self.installed_root / extension_id
+            for task in manifest.agent_tasks:
+                if task.task_id in seen:
+                    raise ValueError(f"duplicate extension Agent task: {task.task_id}")
+                module_path = package_root / task.contract_module
+                module_name = "aps_extension_" + task.task_id.replace(".", "_").replace("-", "_")
+                module_spec = importlib.util.spec_from_file_location(module_name, module_path)
+                if module_spec is None or module_spec.loader is None:
+                    raise ValueError(f"cannot load extension task contract: {task.task_id}")
+                module = importlib.util.module_from_spec(module_spec)
+                sys.modules[module_name] = module
+                module_spec.loader.exec_module(module)
+                output_model = getattr(module, task.contract_model, None)
+                if not isinstance(output_model, type) or not issubclass(output_model, BaseModel):
+                    raise ValueError(f"extension task contract is not a Pydantic model: {task.task_id}")
+                instructions = (package_root / task.prompt_file).read_text(encoding="utf-8-sig")
+                specs.append(
+                    AgentTaskSpec(
+                        task_id=task.task_id,
+                        mode=task.mode,
+                        instructions=instructions,
+                        output_model=output_model,
+                        allowed_tools=frozenset(task.allowed_tools),
+                        max_steps=task.max_steps,
+                        max_input_chars=task.max_input_chars,
+                        max_output_chars=task.max_output_chars,
+                        timeout_seconds=task.timeout_seconds,
+                    )
+                )
+                seen.add(task.task_id)
+        return specs
+
+    def agent_task_capabilities(self, task_id: str) -> frozenset[str]:
+        for manifest in self.manifests.values():
+            for task in manifest.agent_tasks:
+                if task.task_id == task_id:
+                    return frozenset(task.tool_capabilities)
+        return frozenset()
 
     def schedule_payloads(self) -> list[tuple[str, dict[str, Any]]]:
         return [

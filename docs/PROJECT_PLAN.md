@@ -36,14 +36,19 @@ Core MVP 완료. 아래 후속 범위는 기본 서비스 완료 조건과 분�
 - 영속 설정 기반 내부 cron Scheduler와 bounded in-process queue
 - 서버 시작 시 queued Job 복구와 중단된 Job의 `JOB_INTERRUPTED` 처리
 - 공식 확장 manifest 검증·설치와 Schedule 자동 등록
-- Core AI gateway와 Codex·OpenAI 호환·Agent HTTP provider 선택
+- Core AgentExecutor와 OpenAI Responses·OpenAI 호환·Agent HTTP provider 선택
+- immutable OperationRegistry와 공통 Job result/publication pipeline
+- manifest task 기반 briefing 확장 bridge와 제한된 ExtensionHost
+- read-only Idea·Project·Service Tool registry
+- 구조화된 Idea 정규화·병합·Set 후보 검증 및 batch commit
 
 전환 또는 보완 필요:
 
-- Idea 큐레이션은 현재 고정 입력의 결정적 정리와 batch commit까지 구현됨. 자동 요약·유사도 기반 그룹 추천은 후속 AI/Index 범위
+- Idea 큐레이션은 lexical 후보 수집, AI 구조화 분석과 검증된 batch commit까지 연결됨. 대규모 hybrid 검색은 후속 Index 범위
+- 범용 AgentExecutor는 OperationRegistry, briefing 확장과 Idea 큐레이션 handler에 연결됨
 - 공식 확장 update·disable·서명 검증과 `aps-index`가 없음
 - 역할 token은 있지만 기기 token 수명주기가 없음
-- briefing 확장은 Core AI bridge를 사용하지만 정규화된 Core 입력 대신 Vault 문서를 직접 읽는 전환 구조
+- briefing 확장은 범용 bridge를 사용하지만 현재 legacy materializer가 read-only Vault 문서를 직접 읽는 전환 구조
 
 ## MVP 구현 범위
 
@@ -92,6 +97,8 @@ Core MVP 완료. 아래 후속 범위는 기본 서비스 완료 조건과 분�
 - health/readiness와 장애 시 이전 결과 보존
 
 ## 후속 범위
+
+- 승인형 Project proposal을 위한 bounded tool-loop 구현
 
 - 기기별 token 발급·회전·폐기
 - Project·Service용 proposal branch, diff와 명시적 승인 기반 Vault 쓰기

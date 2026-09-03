@@ -5,6 +5,10 @@
   "official": true,
   "aps_api": "1",
   "entrypoint": "entrypoint.py",
+  "resources": [
+    "legacy/daily_briefing.py",
+    "schemas/briefing_response.schema.json"
+  ],
   "capabilities": [
     "daily_briefing",
     "project_briefing",
@@ -37,6 +41,21 @@
         "input": {},
         "context": {}
       }
+    }
+  ],
+  "agent_tasks": [
+    {
+      "task_id": "briefing.project-analyze",
+      "mode": "workflow",
+      "contract_module": "contracts.py",
+      "contract_model": "BriefingAIResponse",
+      "prompt_file": "prompts/project-analyze.md",
+      "allowed_tools": [],
+      "tool_capabilities": [],
+      "max_steps": 1,
+      "max_input_chars": 200000,
+      "max_output_chars": 10000,
+      "timeout_seconds": 600
     }
   ],
   "vault_access": "read-only",

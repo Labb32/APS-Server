@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     official_extensions_path: Path = Path("extensions")
     initial_extensions: str = ""
     index_url: AnyHttpUrl | None = None
-    ai_provider: Literal["codex", "openai-compatible", "agent-http"]
+    ai_provider: Literal["openai", "openai-compatible", "agent-http"]
     ai_base_url: AnyHttpUrl | None = None
     ai_api_key: SecretStr | None = None
     ai_model: str = ""
@@ -52,7 +52,12 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def require_selected_provider_configuration(self) -> "Settings":
-        if self.ai_provider == "openai-compatible":
+        if self.ai_provider == "openai":
+            if self.ai_api_key is None or not self.ai_api_key.get_secret_value().strip():
+                raise ValueError("APS_AI_API_KEY is required when APS_AI_PROVIDER=openai")
+            if not self.ai_model.strip():
+                raise ValueError("APS_AI_MODEL is required when APS_AI_PROVIDER=openai")
+        elif self.ai_provider == "openai-compatible":
             if self.ai_base_url is None:
                 raise ValueError("APS_AI_BASE_URL is required when APS_AI_PROVIDER=openai-compatible")
             if not self.ai_model.strip():

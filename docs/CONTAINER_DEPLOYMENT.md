@@ -10,7 +10,7 @@ APS Server의 기본 배포 단위는 web API, in-process queue, worker, Schedul
 2. `APS_CONFIG_FILE`로 지정한 read-only `KEY=VALUE` 파일
 3. 애플리케이션 기본값
 
-Environment가 설정 파일보다 우선한다. 설정 파일은 `APS_`로 시작하는 key와 `CODEX_HOME`만 허용하며 shell expansion이나 command 실행을 지원하지 않는다.
+Environment가 설정 파일보다 우선한다. 설정 파일은 `APS_`로 시작하는 key만 허용하며 shell expansion이나 command 실행을 지원하지 않는다.
 
 기본 Compose는 `./deploy/config`를 `/config:ro`에 mount한다. 파일 기반 설정을 사용할 경우 다음과 같이 준비한다.
 
@@ -78,24 +78,17 @@ APS_INITIAL_EXTENSIONS=briefing
 
 ## 4. AI provider 선택
 
-APS Server는 AI Agent 의존 서비스이므로 최초 배포에서 Core AI gateway provider를 반드시 하나 선택한다. 기본 provider는 없으며 `.env` 또는 mount한 `APS_CONFIG_FILE`에서 설정한다.
+APS Server는 AI Agent 의존 서비스이므로 최초 배포에서 Core AgentExecutor가 사용할 provider를 반드시 하나 선택한다. 기본 provider는 없으며 `.env` 또는 mount한 `APS_CONFIG_FILE`에서 설정한다.
 
-Codex를 선택할 때:
+OpenAI Responses API를 선택할 때:
 
 ```dotenv
-APS_AI_PROVIDER=codex
-APS_CODEX_HOME_MOUNT=aps-codex-home
+APS_AI_PROVIDER=openai
+APS_AI_API_KEY=replace-with-openai-api-key
+APS_AI_MODEL=replace-with-an-available-responses-model
 ```
 
-기본 APS Server image는 Python Core runtime이며 Node.js와 Codex CLI를 포함하지 않는다. Codex adapter는 별도 파생 image로 빌드하고 Codex Compose override를 함께 사용한다.
-
-```bash
-docker compose build aps-server
-docker compose -f compose.yaml -f compose.codex.yaml build aps-server
-docker compose -f compose.yaml -f compose.codex.yaml up -d
-```
-
-첫 명령은 `Dockerfile.codex`가 기반으로 사용할 `aps-server:local`을 만든다. Codex 버전은 필요할 때 `CODEX_VERSION`, 기반 image는 `APS_SERVER_BASE`로 고정할 수 있다. `/codex-home` volume도 override를 사용할 때만 생성된다.
+기본 APS Server image가 고정된 OpenAI Responses endpoint를 직접 호출한다. Codex 계열 API 모델도 `APS_AI_MODEL`로 선택하며 Codex CLI, Node.js 또는 별도 runtime image를 설치하지 않는다.
 
 별도 vLLM 또는 OpenAI 호환 서비스를 사용할 때는 같은 container network의 base URL과 서버 관리자가 고정한 model을 설정한다.
 
@@ -108,7 +101,7 @@ APS_AI_STRUCTURED_OUTPUT=true
 
 별도 Agent 서비스는 `APS_AI_PROVIDER=agent-http`와 task endpoint의 정확한 URL을 사용한다. 인증이 필요하면 Git에 포함되지 않는 env 또는 secret mount에서 `APS_AI_API_KEY`를 전달한다. 공개 API 요청자는 provider, URL, model과 credential을 지정할 수 없다.
 
-`APS_AI_PROVIDER`가 없거나 빈 값이면 container bootstrap이 실패한다. `openai-compatible`은 `APS_AI_BASE_URL`과 `APS_AI_MODEL`, `agent-http`는 `APS_AI_BASE_URL`이 함께 필요하다. Codex를 선택했지만 실행 파일이 없을 때도 bootstrap이 중단된다. bootstrap을 거치지 않고 Uvicorn을 직접 실행한 개발 환경에서는 같은 문제가 readiness 실패로 표시된다.
+`APS_AI_PROVIDER`가 없거나 빈 값이면 container bootstrap이 실패한다. `openai`는 `APS_AI_API_KEY`와 `APS_AI_MODEL`, `openai-compatible`은 `APS_AI_BASE_URL`과 `APS_AI_MODEL`, `agent-http`는 `APS_AI_BASE_URL`이 함께 필요하다. bootstrap을 거치지 않고 Uvicorn을 직접 실행한 개발 환경에서는 같은 문제가 readiness 실패로 표시된다.
 
 전체 provider 계약과 호환 모드는 [AI provider 설정](AI_PROVIDERS.md)을 참고한다.
 
@@ -188,7 +181,6 @@ location /aps/ {
 |---|---|---|
 | `/vault` | `aps-vault` | local/clone/mounted APS Vault |
 | `/data` | `aps-data` | Job, content, Scheduler state, 설치된 확장 |
-| `/codex-home` | `aps-codex-home` | `compose.codex.yaml`을 적용한 Codex runtime의 인증과 설정 |
 | `/config` | `./deploy/config:ro` | APS env와 Scheduler 설정 |
 
 named volume을 제거하면 해당 영속 데이터도 사라질 수 있다. 운영 환경에서는 Vault remote 또는 별도 backup을 준비한다.

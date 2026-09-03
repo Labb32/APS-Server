@@ -10,18 +10,26 @@ from datetime import UTC, datetime
 from .config import Settings
 from .content_store import ContentStore, ContentValidationError
 from .models import ErrorDetail, JobStatus
-from .operations import OperationError, OperationExecutor
+from .operations import OperationError
+from .runtime import OperationRegistry, OperationRegistryError
 from .store import JobStore
 from .vault import VaultError, VaultRepository
 
 
 class JobRunner:
-    def __init__(self, settings: Settings, store: JobStore, content_store: ContentStore, vault: VaultRepository) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        store: JobStore,
+        content_store: ContentStore,
+        vault: VaultRepository,
+        operations: OperationRegistry,
+    ) -> None:
         self.settings = settings
         self.store = store
         self.content_store = content_store
         self.vault = vault
-        self.operations = OperationExecutor(settings, vault)
+        self.operations = operations
         self.queue: queue.Queue[str] = queue.Queue(maxsize=settings.job_queue_size)
         self._workers: list[threading.Thread] = []
         self._known: set[str] = set()
@@ -107,15 +115,18 @@ class JobRunner:
 
             stored.public.status = JobStatus.RUNNING
             self.store.save(stored)
-            raw_result = self.operations.execute(stored.request)
-            if stored.request.operation.value == "ideas.curate":
-                stored.public.vault_commit = self.vault.commit()
+            spec = self.operations.get(stored.request.operation)
+            operation_result = self.operations.execute(stored.request)
+            if operation_result.vault_commit is not None:
+                stored.public.vault_commit = operation_result.vault_commit
             stored.public.status = JobStatus.VALIDATING
             self.store.save(stored)
-            publications = self.content_store.prepare_operation(
-                stored.request.operation.value,
-                raw_result,
-                stored.public.vault_commit,
+            if stored.public.vault_commit is None:
+                raise OperationError("operation has no Vault snapshot", "VAULT_COMMIT_MISSING")
+            publications = (
+                spec.publisher(operation_result.output, stored.public.vault_commit)
+                if spec.publisher is not None
+                else []
             )
             if publications:
                 stored.public.status = JobStatus.PUBLISHING
@@ -138,13 +149,13 @@ class JobRunner:
                     ],
                 }
             else:
-                stored.public.result = raw_result
+                stored.public.result = operation_result.output
             stored.public.status = JobStatus.SUCCEEDED
         except Exception as error:  # Worker boundary: isolate one failed Job from the process.
             stored.public.status = JobStatus.FAILED
             if isinstance(error, ContentValidationError):
                 error_code = "OUTPUT_SCHEMA_INVALID"
-            elif isinstance(error, (OperationError, VaultError)):
+            elif isinstance(error, (OperationError, OperationRegistryError, VaultError)):
                 error_code = error.code
             else:
                 error_code = "INTERNAL_JOB_ERROR"

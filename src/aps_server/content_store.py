@@ -282,22 +282,17 @@ class ContentStore:
         )
         return ContentPublication(ideas, self.root / "ideas.json", "/v1/content/ideas")
 
-    def prepare_operation(
-        self,
-        operation: str,
-        payload: dict[str, Any],
-        vault_commit: str,
-    ) -> list[ContentPublication]:
-        generated_at = datetime.now(UTC)
-        if operation == "briefing.daily":
-            return self._daily_publications(payload, vault_commit, generated_at)
-        if operation == "briefing.project":
-            return [self._project_publication(payload, vault_commit, generated_at)]
-        if operation == "service.maintenance_due":
-            return [self._service_publication(payload, vault_commit, generated_at)]
-        if operation in {"ideas.index.refresh", "ideas.curate"}:
-            return [self._ideas_publication(payload, vault_commit, generated_at)]
-        return []
+    def prepare_daily(self, payload: dict[str, Any], vault_commit: str) -> list[ContentPublication]:
+        return self._daily_publications(payload, vault_commit, datetime.now(UTC))
+
+    def prepare_project(self, payload: dict[str, Any], vault_commit: str) -> list[ContentPublication]:
+        return [self._project_publication(payload, vault_commit, datetime.now(UTC))]
+
+    def prepare_service(self, payload: dict[str, Any], vault_commit: str) -> list[ContentPublication]:
+        return [self._service_publication(payload, vault_commit, datetime.now(UTC))]
+
+    def prepare_ideas(self, payload: dict[str, Any], vault_commit: str) -> list[ContentPublication]:
+        return [self._ideas_publication(payload, vault_commit, datetime.now(UTC))]
 
     def publish(self, publications: list[ContentPublication]) -> None:
         temporary_paths: list[tuple[Path, Path]] = []

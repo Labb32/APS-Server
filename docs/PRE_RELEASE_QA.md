@@ -1,5 +1,7 @@
 # APS Server pre-release QA
 
+실제 개인 Linux 서버에서 확인된 Compose 문제와 재검증 항목은 [개인 서버 Compose QA 발견사항](PERSONAL_SERVER_QA_FINDINGS.md)에 누적한다.
+
 이 문서는 `0.1.x`를 개인 서버에서 검증한 뒤 공개 release로 전환하기 위한 실행 기준이다. 새 자동 test file을 만드는 대신 실제 container, API, 권한과 Vault 흐름을 직접 확인하고 결과를 기록한다.
 
 ## 1. 승인 기준
@@ -116,7 +118,7 @@ docker compose restart aps-server
 - `docker compose ps`에서 기본 host publish가 `127.0.0.1`인지 확인한다.
 - 외부 접근은 TLS reverse proxy 또는 VPN 뒤에서만 검증한다.
 - HTML upstream token 주입 시 proxy 인증과 접근 로그의 token 마스킹을 확인한다.
-- `.env`, Git key와 provider key가 image layer 및 일반 log에 없는지 확인한다. Codex 파생 image를 검증할 때만 `/codex-home`도 포함한다.
+- `.env`, Git key와 provider API key가 image layer 및 일반 log에 없는지 확인한다.
 - container가 non-root 사용자, `no-new-privileges`, read-only config mount로 실행되는지 확인한다.
 - dependency와 image 취약점 scan 결과를 기록하고 release 차단 수준의 항목을 해소한다.
 
