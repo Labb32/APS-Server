@@ -209,6 +209,7 @@ docker compose restart aps-server
 - [컨테이너 배포](docs/CONTAINER_DEPLOYMENT.md) — Vault mode, 설정 mount, Nginx와 영속 volume
 - [AI provider](docs/AI_PROVIDERS.md) — OpenAI Responses API, Agent HTTP 계약과 OpenAI-compatible API
 - [AgentExecutor 설계](docs/AGENT_EXECUTOR_DESIGN.md) — Operation, Queue, Tool과 확장 경계
+- [커뮤니티 Extension 샌드박스 계획](docs/COMMUNITY_EXTENSION_SANDBOX.md) — 제3자 package의 권한 단계, 격리와 승인 조건
 - [API Reference](docs/API_REFERENCE.md) — 요청·응답 schema, 역할과 오류 코드
 - [OpenAPI](specs/aps-api.openapi.json) — machine-readable 전체 API 계약
 - [Pre-release QA](docs/PRE_RELEASE_QA.md) — 개인 서버 검증 및 공개 승인 기준

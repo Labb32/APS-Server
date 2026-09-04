@@ -149,6 +149,8 @@ HTML은 canonical JSON의 viewer다. 별도 HTML 생성 Job을 두지 않고 AI�
 
 초기에는 APS image가 제공한 공식 package 원본만 설치할 수 있다. Core는 기본적으로 활성 확장 없이 시작한다. `APS_INITIAL_EXTENSIONS`는 애플리케이션 시작 전에 공식 package를 설치해 첫 실행부터 활성화하고, CLI로 실행 중 설치한 package는 다음 재시작부터 Operation과 Schedule을 활성화한다. 실행 중 hot loading은 하지 않는다.
 
+커뮤니티 Extension은 현재 지원하지 않는다. 향후 허용할 경우 같은 container의 subprocess를 보안 경계로 사용하지 않으며, 읽기 전용 기본 권한과 별도 runner를 전제로 한다. 권한 단계, 공급망 검증과 격리 조건은 [커뮤니티 Extension 샌드박스 계획](COMMUNITY_EXTENSION_SANDBOX.md)에 정의한다.
+
 권장 저장 위치:
 
 ```text

@@ -40,6 +40,7 @@ APS Server는 개인 Vault, 인증 token과 선택형 AI provider credential을 
 - 자동 push를 켠 경우에도 현재 tracking upstream에 대한 fast-forward push만 허용하며 push 실패 뒤 local commit을 운영자가 확인한다.
 - container는 non-root UID/GID `10001:10001`, read-only root filesystem, 전체 Linux capability drop과 `no-new-privileges`로 실행한다.
 - 공식 extension은 API token과 Git 환경을 상속하지 않지만 AI 작업에는 provider credential이 필요하다. 설치된 extension과 `/data` volume을 신뢰 경계로 취급한다.
+- 현재 커뮤니티 extension은 지원하지 않는다. 제3자 package를 허용하기 전에는 [커뮤니티 Extension 샌드박스 계획](docs/COMMUNITY_EXTENSION_SANDBOX.md)의 별도 runner와 권한 승인 조건을 구현해야 한다.
 - 공개 reverse proxy에서 요청 body 크기 제한과 rate limiting을 적용한다. 정적 API token 회전에는 container 재시작이 필요하다.
 
 배포 전 검증은 [Pre-release QA](docs/PRE_RELEASE_QA.md)를 따른다.
