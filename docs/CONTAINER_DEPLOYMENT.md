@@ -52,11 +52,43 @@ APS_VAULT_GIT_BRANCH=main
 APS_VAULT_MOUNT=aps-vault
 ```
 
-Private repository 인증은 URL에 token을 넣기보다 read-only deploy key, SSH agent 또는 Docker credential mount를 사용한다. APS Server는 자동 merge, reset, force checkout과 force push를 수행하지 않는다.
+Git 인증은 `/git-auth` named volume에 영속화된다. 한 번 등록한 HTTP(S) credential 또는 SSH key는 container를 다시 만들어도 재사용하며 `/vault`에 mount한 기존 clone에도 그대로 적용된다. URL에 token이나 password를 넣는 방식은 설정 검증에서 거부된다.
+
+HTTP(S) private repository는 image를 build한 뒤 아래 명령을 한 번 실행한다. token은 대화형 hidden prompt로만 입력되며 command line이나 environment에 넣지 않는다. GitHub, GitLab, Gitea와 표준 Git HTTP credential을 지원하는 서비스에 같은 방식으로 사용할 수 있다. 평문 HTTP는 credential을 보호하지 못하므로 신뢰된 내부망이 아니라면 HTTPS를 사용한다.
+
+```bash
+docker compose build aps-server
+docker compose run --rm --entrypoint aps-git-auth aps-server \
+  login-http https://git.example.com/owner/aps-vault.git
+```
+
+SSH private repository는 persistent deploy key를 한 번 만들고 출력된 public key를 Git 서비스에 등록한다. `ssh-keyscan`으로 수집된 host key의 fingerprint는 서비스가 공개한 값과 별도로 대조해야 한다.
+
+```bash
+docker compose run --rm --entrypoint aps-git-auth aps-server \
+  init-ssh git.example.com
+```
+
+컨테이너 Git은 대화형 credential prompt를 끄고 SSH `BatchMode`와 strict host key 검증을 강제하므로 저장된 인증이 없거나 host key가 맞지 않으면 즉시 실패한다. 인증 등록 후 `docker compose up -d`를 실행하면 clone, pull과 push에 같은 credential을 자동 사용한다.
+
+```dotenv
+APS_VAULT_PUSH_AFTER_COMMIT=true
+```
+
+`APS_VAULT_PUSH_AFTER_COMMIT=true`이면 문서화된 tracked Idea commit 흐름에서 생성한 commit을 현재 branch의 tracking upstream으로 즉시 push한다. push 전에 해당 remote를 다시 fetch하고 remote tip이 local HEAD의 ancestor일 때만 명시적인 branch refspec으로 push한다. 경합이나 divergence가 생기면 merge, reset, 강제 checkout 또는 force push 없이 실패하며 local commit은 보존된다. `false`이면 기존처럼 commit만 생성한다.
+
+같은 mount 인증으로 운영자가 container 내부에서 직접 동기화 상태를 확인하거나 수동 동기화할 수도 있다.
+
+```bash
+docker compose exec aps-server git -C /vault pull --ff-only
+docker compose exec aps-server git -C /vault push
+```
+
+수동 명령에서도 merge commit이나 force push는 사용하지 않는다.
 
 ### 기존 host Vault mount
 
-이미 clone된 Vault를 직접 연결할 수 있다. 컨테이너의 `node` 사용자 UID/GID가 host 경로를 읽고 Idea 전용 파일을 쓸 권한이 있어야 한다.
+이미 사용 중인 clone을 remote URL 방식과 관계없이 직접 연결할 수 있다. 저장소의 `.git/config`, 현재 branch와 remote 설정은 그대로 유지하며 인증만 `/git-auth`에서 공급한다. upstream tracking이 없지만 같은 이름의 `origin/<현재 브랜치>`가 있으면 그 branch를 pull/push 대상으로 사용한다. 컨테이너의 `aps` 사용자 UID/GID `10001:10001`이 host 경로를 읽고 Idea 전용 파일을 쓸 권한이 있어야 한다.
 
 ```dotenv
 APS_VAULT_MODE=mounted
@@ -65,6 +97,17 @@ APS_SYNC_BEFORE_JOB=true
 ```
 
 remote가 없는 기존 local repository라면 `APS_SYNC_BEFORE_JOB=false`로 설정한다.
+
+### local Vault를 원격에 최초 게시
+
+`local` mode로 사용하던 named volume도 container 내부의 일반 Git 명령으로 GitHub, GitLab, Gitea 등에 최초 게시할 수 있다. 먼저 위 절차로 인증한 뒤 remote를 추가하고 현재 branch를 push한다.
+
+```bash
+docker compose exec aps-server git -C /vault remote add origin git@github.com:owner/aps-vault.git
+docker compose exec aps-server git -C /vault push -u origin HEAD
+```
+
+HTTPS remote도 동일하며 URL에 token을 포함하지 않는다. 최초 게시 후 `.env`의 `APS_VAULT_MODE=mounted`, `APS_SYNC_BEFORE_JOB=true`를 설정하고 container를 다시 시작하면 기존 volume을 유지한 채 자동 pull과 선택형 push를 사용할 수 있다. remote 이름 변경, branch 변경과 최초 remote 추가는 운영자가 위와 같이 명시적으로 수행한다.
 
 ## 3. 초기 공식 확장
 
@@ -182,6 +225,7 @@ location /aps/ {
 | `/vault` | `aps-vault` | local/clone/mounted APS Vault |
 | `/data` | `aps-data` | Job, content, Scheduler state, 설치된 확장 |
 | `/config` | `./deploy/config:ro` | APS env와 Scheduler 설정 |
+| `/git-auth` | `aps-git-auth` | 영속 HTTPS credential helper, SSH key와 `known_hosts` |
 
 named volume을 제거하면 해당 영속 데이터도 사라질 수 있다. 운영 환경에서는 Vault remote 또는 별도 backup을 준비한다.
 

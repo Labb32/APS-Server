@@ -137,6 +137,27 @@ def prepare_vault(settings: Settings) -> None:
         raise BootstrapError("existing Vault origin does not match APS_VAULT_GIT_URL")
 
 
+def prepare_git_auth() -> None:
+    """Keep non-interactive Git authentication in its persistent volume."""
+    home = Path(os.environ.get("HOME", "/git-auth")).resolve()
+    ssh = home / ".ssh"
+    ssh.mkdir(parents=True, exist_ok=True)
+    ssh.chmod(0o700)
+    credentials = home / "credentials"
+    if credentials.exists():
+        credentials.chmod(0o600)
+    completed = subprocess.run(
+        ["git", "config", "--global", "credential.helper", f"store --file {credentials}"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if completed.returncode:
+        raise BootstrapError("could not configure persistent Git credentials")
+
+
 def prepare_extensions(settings: Settings) -> None:
     installer = OfficialExtensionInstaller(settings.official_extensions_path, settings.extensions_path)
     for extension_id in settings.requested_extensions:
@@ -162,6 +183,7 @@ def main() -> None:
         )
     settings = Settings()
     require_ai_provider(settings)
+    prepare_git_auth()
     prepare_vault(settings)
     prepare_extensions(settings)
     os.execvp(

@@ -349,6 +349,7 @@ Idempotency-Key: device-01-20260901-ideas-refresh
 | `VAULT_DIRTY` | commit되지 않은 Vault 변경으로 sync 거부 |
 | `VAULT_NOT_FAST_FORWARD` | upstream으로 fast-forward 불가 |
 | `VAULT_NOT_REPOSITORY` | Vault가 Git 저장소가 아님 |
+| `VAULT_PUSH_FAILED` | local commit은 생성됐지만 tracking upstream fast-forward push 실패 |
 | `VAULT_SYNC_FAILED` | 기타 Git 처리 실패 |
 | `EXTENSION_NOT_READY` | 공식 확장 필수 파일 누락 |
 | `PROVIDER_EXECUTION_FAILED` | provider 실행 실패 또는 timeout |
@@ -587,7 +588,7 @@ Idea 쓰기는 `operator`만 허용한다. 모든 파일명과 Vault 경로는 �
 {"operation":"ideas.curate","input":{},"context":{}}
 ```
 
-`operator`와 내부 `scheduler`만 생성할 수 있다. Job은 서버 소유 Inbox 문서와 Core가 선택한 lexical 유사 후보를 고정 `ideas.curate-plan` workflow로 분석한다. AI 결과의 source ID, schema, 중복 후보와 대상 경로를 검증한 뒤 `01_Ideas`, `01_Idea_Sets`에 한 batch commit으로 게시한다. commit 성공 뒤에만 해당 Inbox 파일을 제거하며 Git push, branch 전환, merge, reset은 하지 않는다. 처리할 문서가 없으면 현재 catalog를 다시 게시하고 새 commit은 만들지 않는다.
+`operator`와 내부 `scheduler`만 생성할 수 있다. Job은 서버 소유 Inbox 문서와 Core가 선택한 lexical 유사 후보를 고정 `ideas.curate-plan` workflow로 분석한다. AI 결과의 source ID, schema, 중복 후보와 대상 경로를 검증한 뒤 `01_Ideas`, `01_Idea_Sets`에 한 batch commit으로 게시한다. commit 성공 뒤에만 해당 Inbox 파일을 제거한다. `APS_VAULT_PUSH_AFTER_COMMIT=true`이면 현재 tracking upstream으로 fast-forward push하며 branch 전환, merge, reset과 force push는 하지 않는다. 처리할 문서가 없으면 현재 catalog를 다시 게시하고 새 commit은 만들지 않는다.
 
 AI provider 또는 구조화 출력 검증이 실패하면 Job은 `PROVIDER_*`, `AGENT_OUTPUT_INVALID` 또는 `IDEA_CURATION_INVALID` 오류로 종료되고 Inbox와 직전 정상 Content를 유지한다.
 

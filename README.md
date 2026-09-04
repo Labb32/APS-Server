@@ -218,7 +218,8 @@ docker compose restart aps-server
 ## 운영 안전 원칙
 
 - Vault가 dirty하거나 upstream과 diverged 상태이면 자동 동기화를 중단한다.
-- 자동 merge, reset, 강제 checkout과 force push를 하지 않는다.
+- local Vault, 기존 remote clone mount, 빈 volume remote clone을 지원하며 Git 인증은 별도 persistent volume에서 재사용한다.
+- 자동 merge, reset, 강제 checkout과 force push를 하지 않는다. 선택형 Vault push도 현재 tracking upstream에 대한 fast-forward만 허용한다.
 - 자유 형식 agent query, 요청자 지정 Vault 경로와 임의 실행 명령을 제공하지 않는다.
 - AI credential, token과 내부 비밀값을 Git, image, Job 결과나 일반 로그에 기록하지 않는다.
 - 생성 작업이 실패하면 불완전한 결과 대신 직전 정상 Content를 유지한다.

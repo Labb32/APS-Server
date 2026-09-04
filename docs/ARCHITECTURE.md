@@ -45,7 +45,7 @@ Git remote를 사용하는 경우 APS Server는 다음 조건에서만 동기화
 - 현재 HEAD가 upstream의 ancestor
 - `merge --ff-only`로 이동 가능
 
-자동 merge, reset, 강제 checkout, force push와 자동 충돌 해결은 금지한다.
+자동 merge, reset, 강제 checkout, force push와 자동 충돌 해결은 금지한다. 선택형 push는 현재 tracking upstream에 fast-forward 가능한 tracked Idea commit으로 제한한다.
 
 ## 3. APS Server Core
 
@@ -219,7 +219,7 @@ request
   → 기본 branch 병합은 사용자/외부 절차
 ```
 
-Idea 전용 경계 밖의 승인 전 원본 이동·삭제·덮어쓰기와 기본 branch 자동 push·merge는 금지한다.
+Idea 전용 경계 밖의 승인 전 원본 이동·삭제·덮어쓰기와 자동 push·merge는 금지한다.
 
 ## 8. 인증과 배포
 

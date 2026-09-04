@@ -6,6 +6,11 @@ LABEL org.opencontainers.image.title="APS Server" \
       org.opencontainers.image.licenses="Apache-2.0"
 
 ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    HOME=/git-auth \
+    GIT_CONFIG_GLOBAL=/git-auth/gitconfig \
+    GIT_TERMINAL_PROMPT=0 \
+    GIT_SSH_COMMAND="ssh -o BatchMode=yes -o StrictHostKeyChecking=yes" \
     APS_VAULT_PATH=/vault \
     APS_DATA_PATH=/data \
     APS_VAULT_MODE=local \
@@ -16,10 +21,10 @@ ENV PYTHONUNBUFFERED=1 \
     APS_HTTP_PORT=8080
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates git tini \
+    && apt-get install -y --no-install-recommends ca-certificates git openssh-client tini \
     && rm -rf /var/lib/apt/lists/* \
-    && groupadd --system aps \
-    && useradd --system --gid aps --home-dir /nonexistent --shell /usr/sbin/nologin aps
+    && groupadd --system --gid 10001 aps \
+    && useradd --system --uid 10001 --gid aps --create-home --home-dir /git-auth --shell /usr/sbin/nologin aps
 
 WORKDIR /app
 COPY pyproject.toml README.md LICENSE NOTICE ./
@@ -27,8 +32,10 @@ COPY src ./src
 COPY extensions /opt/aps/official-extensions
 COPY vault-template /opt/aps/vault-template
 RUN pip install --no-cache-dir . \
-    && mkdir -p /vault /data/jobs /data/artifacts /data/work /data/extensions /config \
-    && chown -R aps:aps /app /opt/aps /vault /data /config
+    && python3 -m pip uninstall --yes pip setuptools \
+    && mkdir -p /vault /data/jobs /data/artifacts /data/work /data/extensions /config /git-auth/.ssh \
+    && chown -R aps:aps /app /opt/aps /vault /data /config /git-auth \
+    && chmod 700 /git-auth /git-auth/.ssh
 
 USER aps
 EXPOSE 8080

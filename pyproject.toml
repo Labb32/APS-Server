@@ -35,6 +35,7 @@ dev = [
 
 [project.scripts]
 aps = "aps_server.cli:main"
+aps-git-auth = "aps_server.git_auth:main"
 
 [project.urls]
 Homepage = "https://github.com/Labb32/aps-server"

@@ -89,7 +89,14 @@ class ExtensionHost:
         snapshot_root: Path,
         snapshot_id: str,
     ) -> dict[str, Any]:
-        environment = os.environ.copy()
+        # Do not copy API tokens or Git configuration into extension
+        # environments. Provider credentials remain necessary for the fixed
+        # Agent bridge and are redacted from extension failures below.
+        environment = {
+            key: os.environ[key]
+            for key in ("PATH", "LANG", "LC_ALL", "TZ", "PYTHONPATH")
+            if key in os.environ
+        }
         environment.update(
             {
                 "APS_AI_PROVIDER": self.settings.ai_provider,
@@ -104,6 +111,9 @@ class ExtensionHost:
                 "APS_VAULT_PATH": str(snapshot_root),
                 "APS_EXTENSIONS_PATH": str(self.extensions.installed_root.resolve()),
                 "APS_AGENT_SNAPSHOT_ID": snapshot_id,
+                "HOME": str(snapshot_root),
+                "GIT_CONFIG_GLOBAL": os.devnull,
+                "GIT_TERMINAL_PROMPT": "0",
             }
         )
         if self.settings.ai_base_url:
@@ -139,6 +149,8 @@ class ExtensionHost:
             raise ExtensionHostError("extension process could not complete") from error
         if completed.returncode:
             detail = (completed.stderr or completed.stdout or "no output").strip()
+            if self.settings.ai_api_key:
+                detail = detail.replace(self.settings.ai_api_key.get_secret_value(), "***")
             raise ExtensionHostError(f"extension failed ({completed.returncode}): {detail[-4000:]}")
         try:
             payload = json.loads(completed.stdout)

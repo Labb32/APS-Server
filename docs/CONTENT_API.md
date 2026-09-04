@@ -46,7 +46,7 @@ Authorization: Bearer <token>
 
 현재 구현은 역할별 정적 token을 환경변수로 받는다. 목표 구조에서는 같은 사용자에게 기기별 token을 발급하고 `token_id`, 역할, 발급·만료·폐기 상태를 관리한다.
 
-현재 Job 조회는 인증된 token이 Job ID를 알면 역할과 생성자를 구분하지 않는다. 기기 token 구현 시 operator는 전체 Job, viewer와 scheduler는 자신이 생성한 허용 Job만 조회하도록 제한한다.
+`operator`는 모든 Job을 조회할 수 있다. 그 외 역할은 같은 역할로 생성된 Job과 Artifact만 조회할 수 있으며 `viewer`는 Job을 생성할 수 없다. 향후 기기별 token을 도입하면 같은 역할 안에서도 생성 token 단위로 범위를 좁힌다.
 
 ## 4. JSON과 HTML 규칙
 
@@ -295,7 +295,7 @@ Project 제안은 확인 응답 후 proposal Job을 생성한다. client는 prom
 | `ideas.index.refresh` | Vault 변경 또는 schedule | canonical Idea JSON과 lexical 검색 원본 갱신 |
 | `ideas.curate` | `15 */6 * * *` 또는 operator 요청 | pending과 lexical 후보의 AI 구조화 정리, 검증된 Idea/Set batch commit과 canonical JSON 갱신 |
 
-`ideas.curate`는 Core의 제한된 쓰기 operation이다. 서버가 소유한 `00_Inbox/<server-generated-id>.md`와 Core가 고른 committed lexical 후보만 AI 입력으로 사용하고, 구조화 결과의 ID·schema·중복·대상 경로 검증을 통과한 변경만 `01_Ideas/<idea_id>.md`와 `01_Idea_Sets/<idea_set_id>.md`에 한 번의 batch commit으로 기록한다. commit 성공 뒤에만 처리한 Inbox 원본을 제거하며 push, branch 변경, merge는 수행하지 않는다.
+`ideas.curate`는 Core의 제한된 쓰기 operation이다. 서버가 소유한 `00_Inbox/<server-generated-id>.md`와 Core가 고른 committed lexical 후보만 AI 입력으로 사용하고, 구조화 결과의 ID·schema·중복·대상 경로 검증을 통과한 변경만 `01_Ideas/<idea_id>.md`와 `01_Idea_Sets/<idea_set_id>.md`에 한 번의 batch commit으로 기록한다. commit 성공 뒤에만 처리한 Inbox 원본을 제거한다. 설정된 경우 현재 tracking upstream으로 fast-forward push하며 branch 변경, merge와 force push는 수행하지 않는다.
 
 ### Idea 쓰기 요청
 
@@ -448,7 +448,7 @@ request accepted into staging
 
 금지 사항:
 
-- 기본 branch 자동 commit·push·merge
+- 문서화된 Idea commit 흐름 밖의 자동 commit·push·merge
 - 자동 충돌 해결
 - reset, 강제 checkout과 force push
 - 요청자가 지정한 path, branch, remote와 Git 명령

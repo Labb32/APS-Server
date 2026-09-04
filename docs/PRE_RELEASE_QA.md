@@ -81,7 +81,7 @@ QA용 Idea 하나를 `POST /v1/ideas`로 접수한다.
 5. `ideas.curate` 실행 전 Git tracked 변경이 없는지 확인한다.
 6. 실행 후 schema를 통과한 문서만 `01_Ideas`와 필요 시 `01_Idea_Sets`에 한 batch commit으로 기록되는지 확인한다.
 7. commit 성공 뒤에만 처리된 Inbox 원본이 제거되는지 확인한다.
-8. 자동 push, branch 전환, merge, reset이 없었는지 `git status`, `git log`, `git reflog`로 확인한다.
+8. push 설정이 꺼져 있으면 자동 push가 없고, 켜져 있으면 현재 tracking upstream으로만 fast-forward push됐는지 확인한다. 두 경우 모두 branch 전환, merge, reset이 없었는지 `git status`, `git log`, `git reflog`로 확인한다.
 
 tracked Idea 즉시 수정은 disposable remote에서만 검증하고 대상 Markdown 외의 파일이 commit되지 않는지 확인한다.
 

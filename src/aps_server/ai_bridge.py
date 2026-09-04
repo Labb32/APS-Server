@@ -26,7 +26,7 @@ def main() -> int:
     prompt = sys.stdin.read()
     try:
         settings = Settings()
-        vault = VaultRepository(settings.vault_path)
+        vault = VaultRepository(settings.vault_path, push_after_commit=settings.vault_push_after_commit)
         extensions = ExtensionRegistry(settings.extensions_path)
         snapshot_id = os.environ.get("APS_AGENT_SNAPSHOT_ID")
         executor = build_agent_executor(settings, vault, extensions, snapshot_id)

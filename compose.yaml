@@ -17,6 +17,7 @@ services:
       APS_SCHEDULE_OVERRIDES_PATH: "${APS_SCHEDULE_OVERRIDES_PATH:-/config/schedule-overrides.json}"
       APS_HTTP_HOST: 0.0.0.0
       APS_HTTP_PORT: "${APS_HTTP_PORT:-8080}"
+      APS_VAULT_PUSH_AFTER_COMMIT: "${APS_VAULT_PUSH_AFTER_COMMIT:-false}"
     ports:
       - "${APS_BIND_HOST:-127.0.0.1}:${APS_BIND_PORT:-8080}:${APS_HTTP_PORT:-8080}"
     expose:
@@ -24,6 +25,7 @@ services:
     volumes:
       - "${APS_VAULT_MOUNT:-aps-vault}:/vault"
       - aps-data:/data
+      - aps-git-auth:/git-auth
       - "${APS_CONFIG_MOUNT:-./deploy/config}:/config:ro"
     healthcheck:
       test: ["CMD", "python3", "-c", "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('APS_HTTP_PORT', '8080') + '/health/live', timeout=3)"]
@@ -33,7 +35,14 @@ services:
       start_period: 20s
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    pids_limit: 128
 
 volumes:
   aps-vault:
   aps-data:
+  aps-git-auth:
