@@ -14,6 +14,7 @@ from ...content_models import IdeaItem, IdeaSearchResult, IdeasData
 from ...idea_catalog import load_idea_catalog
 from ...idea_search import search_ideas
 from ...vault import VaultRepository
+from ...vault_files import read_vault_text
 from .registry import ToolContext, ToolRegistry, ToolRegistryError, ToolSpec
 
 
@@ -61,15 +62,15 @@ class DocumentReadOutput(DocumentSummary):
     content: str = Field(max_length=50_000)
 
 
-def _body(path: Path) -> str:
-    text = path.read_text(encoding="utf-8-sig").replace("\r\n", "\n")
+def _body(root: Path, path: Path) -> str:
+    text = read_vault_text(root, path).replace("\r\n", "\n")
     if not text.startswith("---"):
         return text[:50_000]
     parts = text.split("---", 2)
     return (parts[2].lstrip("\n") if len(parts) == 3 else text)[:50_000]
 
 
-def _document_metadata(path: Path) -> dict[str, str]:
+def _document_metadata(root: Path, path: Path) -> dict[str, str]:
     """Extract only supported top-level text fields from general Vault YAML.
 
     Project and Service documents may contain richer YAML than Idea files.
@@ -77,7 +78,7 @@ def _document_metadata(path: Path) -> dict[str, str]:
     writable or general-purpose configuration format.
     """
 
-    text = path.read_text(encoding="utf-8-sig").replace("\r\n", "\n")
+    text = read_vault_text(root, path).replace("\r\n", "\n")
     if not text.startswith("---\n"):
         return {}
     parts = text.split("---", 2)
@@ -115,9 +116,9 @@ def _title(path: Path, metadata: dict[str, Any], body: str) -> str:
     return path.stem[:200]
 
 
-def _document(path: Path, id_fields: tuple[str, ...], fallback_id: str) -> DocumentReadOutput:
-    metadata = _document_metadata(path)
-    body = _body(path)
+def _document(root: Path, path: Path, id_fields: tuple[str, ...], fallback_id: str) -> DocumentReadOutput:
+    metadata = _document_metadata(root, path)
+    body = _body(root, path)
     document_id = next(
         (
             str(metadata[field]).strip()
@@ -146,7 +147,7 @@ def _slug(value: str) -> str:
 def _project_documents(root: Path) -> list[DocumentReadOutput]:
     directory = root / "02_Projects"
     return [
-        _document(path, ("project_id", "briefing_id"), _slug(path.stem))
+        _document(root, path, ("project_id", "briefing_id"), _slug(path.stem))
         for path in sorted(directory.glob("*.md"), key=lambda item: item.name.casefold())
     ] if directory.is_dir() else []
 
@@ -154,7 +155,7 @@ def _project_documents(root: Path) -> list[DocumentReadOutput]:
 def _service_documents(root: Path) -> list[DocumentReadOutput]:
     directory = root / "03_Services"
     return [
-        _document(path, ("service_id",), _slug(path.stem))
+        _document(root, path, ("service_id",), _slug(path.stem))
         for path in sorted(directory.glob("*.md"), key=lambda item: item.name.casefold())
     ] if directory.is_dir() else []
 

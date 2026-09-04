@@ -32,7 +32,8 @@ from .idea_catalog import (
     _frontmatter,
     load_idea_catalog,
 )
-from .vault import VaultRepository
+from .vault import VaultPushError, VaultRepository
+from .vault_files import read_vault_bytes, read_vault_text
 
 
 class IdeaServiceError(RuntimeError):
@@ -56,10 +57,10 @@ def _block(name: str, value: str) -> list[str]:
     return [f"{name}: >-", *(f"  {part}" for part in parts)]
 
 
-def _body(path: Path) -> str | None:
+def _body(vault_root: Path, path: Path) -> str | None:
     if not path.is_file():
         return None
-    text = path.read_text(encoding="utf-8-sig").replace("\r\n", "\n")
+    text = read_vault_text(vault_root, path).replace("\r\n", "\n")
     parts = text.split("---", 2)
     return parts[2].lstrip("\n") if len(parts) == 3 else None
 
@@ -129,7 +130,7 @@ class IdeaService:
         if not self.inbox.is_dir():
             return IdeasData()
         for path in sorted(self.inbox.glob("idea_*.md")):
-            metadata = _frontmatter(path)
+            metadata = _frontmatter(path, self.vault.root)
             if metadata.get("type") == "idea":
                 ideas.append(self._idea_from_metadata(metadata, "inbox"))
             elif metadata.get("type") == "idea_set":
@@ -206,7 +207,7 @@ class IdeaService:
     def _find_committed(self, idea_id: str) -> Path | None:
         directory = self.vault.root / IDEA_DIRECTORY
         for path in directory.glob("*.md"):
-            if _frontmatter(path).get("idea_id") == idea_id:
+            if _frontmatter(path, self.vault.root).get("idea_id") == idea_id:
                 return path
         return None
 
@@ -217,7 +218,7 @@ class IdeaService:
             path = pending_path if pending_path.is_file() else committed_path
             if path is None:
                 raise IdeaServiceError("Idea not found", "IDEA_NOT_FOUND")
-            metadata = _frontmatter(path)
+            metadata = _frontmatter(path, self.vault.root)
             current = self._idea_from_metadata(metadata, "inbox" if path == pending_path else "vault")
             changes = request.model_dump(exclude_unset=True)
             updated = current.model_copy(update={**changes, "updated_at": datetime.now(UTC)})
@@ -227,7 +228,7 @@ class IdeaService:
                 if updated.status != "inbox":
                     raise IdeaServiceError("pending Idea status must remain inbox", "IDEA_STATUS_INVALID")
                 self._require_ignored(path)
-                _atomic_write(path, _render_idea(updated, created_at, _body(path), merge_sources))
+                _atomic_write(path, _render_idea(updated, created_at, _body(self.vault.root, path), merge_sources))
                 return updated, None
 
             if updated.status == "inbox":
@@ -238,16 +239,18 @@ class IdeaService:
                 path = self._find_committed(idea_id)
                 if path is None:
                     raise IdeaServiceError("Idea disappeared after Vault sync", "IDEA_NOT_FOUND")
-                metadata = _frontmatter(path)
+                metadata = _frontmatter(path, self.vault.root)
                 current = self._idea_from_metadata(metadata, "vault")
                 updated = current.model_copy(update={**changes, "updated_at": datetime.now(UTC)})
             else:
                 self.vault.require_clean()
-            original = path.read_bytes()
+            original = read_vault_bytes(self.vault.root, path)
             try:
-                _atomic_write(path, _render_idea(updated, str(metadata.get("created_at") or updated.updated_at.date()), _body(path)))
+                _atomic_write(path, _render_idea(updated, str(metadata.get("created_at") or updated.updated_at.date()), _body(self.vault.root, path)))
                 load_idea_catalog(self.vault.root)
                 commit = self.vault.commit_paths([path], f"idea: update {idea_id}")
+            except VaultPushError:
+                raise
             except Exception:
                 path.write_bytes(original)
                 raise
@@ -293,12 +296,12 @@ class IdeaService:
                 # previous worktree if any document fails validation.
                 for item in pending.ideas:
                     source = self.inbox / f"{item.idea_id}.md"
-                    metadata = _frontmatter(source)
+                    metadata = _frontmatter(source, self.vault.root)
                     destination = self.vault.root / IDEA_DIRECTORY / f"{item.idea_id}.md"
                     if self._find_committed(item.idea_id):
                         source_paths.append(source)
                         continue
-                    originals[destination] = destination.read_bytes() if destination.exists() else None
+                    originals[destination] = read_vault_bytes(self.vault.root, destination) if destination.exists() else None
                     normalized = normalizations.get(item.idea_id)
                     changes = (
                         {
@@ -323,7 +326,7 @@ class IdeaService:
                         _render_idea(
                             committed,
                             str(metadata.get("created_at") or committed.updated_at.date()),
-                            _body(source),
+                            _body(self.vault.root, source),
                             metadata.get("merge_source_idea_ids") or [],
                         ),
                     )
@@ -356,9 +359,9 @@ class IdeaService:
                     available_ids.add(merged.idea_id)
                 for item in pending.idea_sets:
                     source = self.inbox / f"{item.idea_set_id}.md"
-                    metadata = _frontmatter(source)
+                    metadata = _frontmatter(source, self.vault.root)
                     destination = self.vault.root / IDEA_SET_DIRECTORY / f"{item.idea_set_id}.md"
-                    originals[destination] = destination.read_bytes() if destination.exists() else None
+                    originals[destination] = read_vault_bytes(self.vault.root, destination) if destination.exists() else None
                     committed = item.model_copy(update={"storage": "vault", "commit_status": "committed"})
                     _atomic_write(
                         destination,
@@ -388,6 +391,8 @@ class IdeaService:
                         destinations,
                         f"ideas: curate {len(source_paths)} inbox item(s), {len(destinations)} document(s)",
                     )
+            except VaultPushError:
+                raise
             except Exception:
                 for path, content in originals.items():
                     if content is None:

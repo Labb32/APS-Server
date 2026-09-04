@@ -31,11 +31,15 @@ APS Server는 개인 Vault, 인증 token과 선택형 AI provider credential을 
 - 설정된 API token은 각각 32자 이상이어야 하며 역할 간 같은 값을 재사용할 수 없다.
 - `.env`, provider API key와 Git credential을 Git 또는 container image에 포함하지 않는다.
 - Git credential은 `/git-auth` 전용 volume에만 저장하고 host에서 해당 Docker volume 접근을 제한한다. HTTP credential store는 token을 복원 가능한 형태로 저장하므로 volume backup과 접근 권한도 secret으로 취급한다. 원격 URL에는 token이나 password를 넣지 않는다.
+- 원격 Vault에서 경계를 벗어나는 symlink는 문서로 읽지 않으며 Vault 문서 하나의 크기는 2 MiB로 제한한다.
 - 기본 `127.0.0.1` bind를 유지하고 외부 접근에는 TLS reverse proxy 또는 개인 VPN을 사용한다.
 - 브라우저용 HTML upstream에 token을 주입한다면 proxy 자체 인증 없이 공개하지 않는다.
 - `/vault`와 `/data`의 host 권한과 backup을 별도로 관리한다.
 - 공식 extension만 설치하고 image tag와 AI model version을 운영자가 고정한다.
 - Vault sync 실패, dirty worktree와 diverged branch를 자동 merge·reset·force push로 해결하지 않는다.
 - 자동 push를 켠 경우에도 현재 tracking upstream에 대한 fast-forward push만 허용하며 push 실패 뒤 local commit을 운영자가 확인한다.
+- container는 non-root UID/GID `10001:10001`, read-only root filesystem, 전체 Linux capability drop과 `no-new-privileges`로 실행한다.
+- 공식 extension은 API token과 Git 환경을 상속하지 않지만 AI 작업에는 provider credential이 필요하다. 설치된 extension과 `/data` volume을 신뢰 경계로 취급한다.
+- 공개 reverse proxy에서 요청 body 크기 제한과 rate limiting을 적용한다. 정적 API token 회전에는 container 재시작이 필요하다.
 
 배포 전 검증은 [Pre-release QA](docs/PRE_RELEASE_QA.md)를 따른다.

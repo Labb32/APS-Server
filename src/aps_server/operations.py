@@ -23,6 +23,7 @@ from .models import (
 )
 from .runtime import OperationRegistry, OperationResult, OperationSpec
 from .vault import VaultRepository
+from .vault_files import read_vault_text
 
 
 class OperationError(RuntimeError):
@@ -56,7 +57,7 @@ class OperationHandlers:
         projects = self.vault.root / "02_Projects"
         active_count = 0
         for note in sorted(projects.glob("*.md")):
-            content = note.read_text(encoding="utf-8-sig")
+            content = read_vault_text(self.vault.root, note)
             parts = content.split("---", 2)
             if not content.startswith("---") or len(parts) < 3:
                 issues.append({"path": note.name, "code": "PROJECT_FRONTMATTER_INVALID"})

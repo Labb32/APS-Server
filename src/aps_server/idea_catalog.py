@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .vault_files import read_vault_text
+
 
 class IdeaCatalogError(RuntimeError):
     pass
@@ -25,8 +27,8 @@ def _scalar(value: str) -> str:
     return value
 
 
-def _frontmatter(path: Path) -> dict[str, Any]:
-    text = path.read_text(encoding="utf-8-sig").replace("\r\n", "\n")
+def _frontmatter(path: Path, vault_root: Path) -> dict[str, Any]:
+    text = read_vault_text(vault_root, path).replace("\r\n", "\n")
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         raise IdeaCatalogError(f"{path.name}: frontmatter is required")
@@ -107,7 +109,7 @@ def load_idea_catalog(vault_root: Path) -> dict[str, list[dict[str, Any]]]:
     ideas: list[dict[str, Any]] = []
     seen_idea_ids: set[str] = set()
     for path in sorted(idea_directory.glob("*.md"), key=lambda item: item.name.casefold()):
-        metadata = _frontmatter(path)
+        metadata = _frontmatter(path, vault_root)
         if metadata.get("type") != "idea":
             raise IdeaCatalogError(f"{path.name}: type must be idea")
         idea_id = _required_string(metadata, "idea_id", path)
@@ -131,7 +133,7 @@ def load_idea_catalog(vault_root: Path) -> dict[str, list[dict[str, Any]]]:
     set_directory = vault_root / IDEA_SET_DIRECTORY
     if set_directory.is_dir():
         for path in sorted(set_directory.glob("*.md"), key=lambda item: item.name.casefold()):
-            metadata = _frontmatter(path)
+            metadata = _frontmatter(path, vault_root)
             if metadata.get("type") != "idea_set":
                 raise IdeaCatalogError(f"{path.name}: type must be idea_set")
             idea_set_id = _required_string(metadata, "idea_set_id", path)

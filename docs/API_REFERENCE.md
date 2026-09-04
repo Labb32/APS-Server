@@ -66,7 +66,7 @@ APS Server는 IP, Origin 또는 proxy header를 사용자 인증 근거로 사�
 }
 ```
 
-본문의 `request_id`는 `X-Request-ID` 헤더와 같다. 검증 오류는 위치, 설명과 유형만 반환하며 요청 원문이나 token은 포함하지 않는다.
+설정된 역할별 Bearer token은 각각 32자 이상이고 서로 달라야 한다. 본문의 `request_id`는 `X-Request-ID` 헤더와 같다. 검증 오류는 위치, 설명과 유형만 반환하며 요청 원문이나 token은 포함하지 않는다.
 
 ### HTTP 오류 코드
 

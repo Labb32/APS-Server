@@ -43,7 +43,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     store = JobStore(settings.data_path)
     content_store = ContentStore(settings.data_path)
     html_renderer = HTMLRenderer()
-    vault = VaultRepository(settings.vault_path)
+    vault = VaultRepository(settings.vault_path, push_after_commit=settings.vault_push_after_commit)
     ideas = IdeaService(vault, settings.sync_before_job)
     extensions = ExtensionRegistry(settings.extensions_path)
     agent = build_agent_executor(settings, vault, extensions)
@@ -270,11 +270,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     @app.get("/v1/jobs/{job_id}", response_model=Job)
-    def get_job(job_id: str, _: str = Depends(authenticate)) -> Job:
+    def get_job(job_id: str, role: str = Depends(authenticate)) -> Job:
         try:
-            return store.get(job_id).public
+            stored = store.get(job_id)
         except KeyError as error:
             raise ContentAPIError(status.HTTP_404_NOT_FOUND, "JOB_NOT_FOUND", "Job을 찾을 수 없습니다.") from error
+        if role != "operator" and stored.role != role:
+            raise ContentAPIError(status.HTTP_403_FORBIDDEN, "OPERATION_FORBIDDEN", "Job read is not allowed for this token")
+        return stored.public
 
     @app.post("/v1/jobs/{job_id}/cancel", response_model=Job, status_code=status.HTTP_202_ACCEPTED)
     def cancel_job(job_id: str, role: str = Depends(authenticate)) -> Job:
@@ -288,11 +291,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise ContentAPIError(status.HTTP_409_CONFLICT, "JOB_NOT_CANCELLABLE", str(error)) from error
 
     @app.get("/v1/jobs/{job_id}/artifacts/{artifact_id}")
-    def get_artifact(job_id: str, artifact_id: str, _: str = Depends(authenticate)) -> FileResponse:
+    def get_artifact(job_id: str, artifact_id: str, role: str = Depends(authenticate)) -> FileResponse:
         try:
             stored = store.get(job_id)
         except KeyError as error:
             raise ContentAPIError(status.HTTP_404_NOT_FOUND, "JOB_NOT_FOUND", "Job을 찾을 수 없습니다.") from error
+        if role != "operator" and stored.role != role:
+            raise ContentAPIError(status.HTTP_403_FORBIDDEN, "OPERATION_FORBIDDEN", "Artifact read is not allowed for this token")
         raw_path = stored.artifact_paths.get(artifact_id)
         if not raw_path:
             raise ContentAPIError(status.HTTP_404_NOT_FOUND, "ARTIFACT_NOT_FOUND", "Artifact를 찾을 수 없습니다.")

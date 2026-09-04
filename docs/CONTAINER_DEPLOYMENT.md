@@ -208,13 +208,19 @@ APS_BIND_PORT=8080
 같은 host의 Nginx로만 연결할 때는 기본 `127.0.0.1:8080` publish를 유지한다.
 
 ```nginx
+limit_req_zone $binary_remote_addr zone=aps_api:10m rate=10r/s;
+
 location /aps/ {
+    client_max_body_size 1m;
+    limit_req zone=aps_api burst=20 nodelay;
     proxy_pass http://127.0.0.1:8080/;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Authorization $http_authorization;
 }
 ```
+
+`limit_req_zone`은 Nginx의 `http` context에서 운영 환경에 맞게 별도로 정의한다. APS Server의 token은 고엔트로피여야 하지만 reverse proxy rate limit과 body limit도 함께 적용한다.
 
 외부에서 직접 접근해야 할 때만 `APS_BIND_HOST=0.0.0.0`으로 바꾸고 TLS reverse proxy, VPN 또는 방화벽을 적용한다. 다른 Compose service가 접근할 때는 host port 대신 `http://aps-server:8080`을 사용한다.
 
