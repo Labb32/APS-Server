@@ -59,6 +59,25 @@ class ContentEnvelope(ContractModel):
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
+class VaultDocument(ContractModel):
+    document_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")
+    name: str = Field(min_length=1, max_length=200)
+    status: str = Field(default="", max_length=80)
+    tier: str | None = Field(default=None, max_length=20)
+    summary: str = Field(default="", max_length=2000)
+    content: str = Field(max_length=50000)
+
+
+class VaultDocumentsData(ContractModel):
+    projects: list[VaultDocument] = Field(default_factory=list)
+    services: list[VaultDocument] = Field(default_factory=list)
+
+
+class VaultDocumentsResponse(ContentEnvelope):
+    content_type: Literal["vault_documents"] = "vault_documents"
+    data: VaultDocumentsData
+
+
 class DailySummary(ContractModel):
     active_projects: int = Field(ge=0)
     tasks: int = Field(ge=0)

@@ -1,5 +1,7 @@
 # APS Server 아키텍처
 
+> 목표 범위는 [PROJECT_PLAN](PROJECT_PLAN.md)으로 갱신되었다. 아래 AI provider 필수·Core lexical 전용 검색·aps-index 색인 전용 설명은 이전 설계다. 선택 AI·내장 소형 임베딩·외부 AI 큐·저장 backend 전환 작업은 [TASKS](TASKS.md)와 [plugins](../plugins/README.md)에서 관리한다.
+
 Agent 기반 문서 분석과 제한된 Tool 실행을 추가하는 목표 모듈 구조는 [AgentExecutor 설계](AGENT_EXECUTOR_DESIGN.md)를 따른다.
 
 ## 1. 구성 요소

@@ -15,6 +15,7 @@ from .models import CreateJobRequest, OperationName
 
 CORE_OPERATIONS = {
     OperationName.VAULT_AUDIT,
+    OperationName.VAULT_CONTENT_REFRESH,
     OperationName.IDEAS_INDEX_REFRESH,
     OperationName.IDEAS_CURATE,
 }

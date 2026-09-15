@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     official_extensions_path: Path = Path("extensions")
     initial_extensions: str = ""
     index_url: AnyHttpUrl | None = None
-    ai_provider: Literal["openai", "openai-compatible", "agent-http"]
+    ai_provider: Literal["none", "openai", "openai-compatible", "agent-http"] = "none"
     ai_base_url: AnyHttpUrl | None = None
     ai_api_key: SecretStr | None = None
     ai_model: str = ""
@@ -49,6 +49,15 @@ class Settings(BaseSettings):
     scheduler_misfire_lookback_minutes: int = Field(default=1440, ge=1, le=10080)
     schedules_path: Path | None = None
     schedule_overrides_path: Path | None = None
+
+    @field_validator("ai_provider", mode="before")
+    @classmethod
+    def default_disabled_provider(cls, value: object) -> object:
+        return "none" if isinstance(value, str) and not value.strip() else value
+
+    @property
+    def ai_enabled(self) -> bool:
+        return self.ai_provider != "none"
 
     @field_validator("ai_base_url")
     @classmethod

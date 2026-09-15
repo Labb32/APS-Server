@@ -1,5 +1,7 @@
 # APS Server
 
+> 개발 목표를 AI 없는 Vault API 중심으로 재정의했다. 새 범위는 [개발 계획](docs/PROJECT_PLAN.md), 구현 차이와 남은 작업은 [TASKS](docs/TASKS.md), 선택 기능은 [plugins](plugins/README.md)를 따른다. 아래 기존 안내의 AI 필수 설정과 브리핑 중심 설명은 전환 전 내용이며 작업 트리의 `APS_AI_PROVIDER=none` 지원과 맞추는 작업이 남아 있다.
+
 APS Server는 개인의 APS Vault를 API와 자동화 작업으로 연결하는 self-hosted 백엔드다. Vault의 Markdown 문서를 원본으로 유지하면서 브리핑, 프로젝트, 서비스 유지보수 정보와 Idea를 JSON 또는 HTML로 제공한다.
 
 하나의 APS Server 컨테이너는 한 명의 사용자와 하나의 Vault를 담당한다. 여러 사용자가 필요하면 사용자별 컨테이너를 분리하고 reverse proxy에서 요청을 전달한다.

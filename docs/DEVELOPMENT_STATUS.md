@@ -1,5 +1,7 @@
 # APS Server 구조 및 개발 현황
 
+> 아래 MVP 현황은 이전 범위의 기록이다. 2026-09-15에 재정의한 목표와 미커밋 변경을 포함한 작업 상태는 [PROJECT_PLAN](PROJECT_PLAN.md)과 [TASKS](TASKS.md)를 기준으로 판단한다. 선택 기능별 작업은 [plugins](../plugins/README.md)로 분리했다.
+
 이 문서는 APS Server의 내부 구성, MVP 구현 범위와 후속 개발 항목을 정리한다. 설치와 기본 사용법은 저장소 [README](../README.md), 세부 설계는 [아키텍처](ARCHITECTURE.md)를 참고한다.
 
 ## 1. 시스템 구조

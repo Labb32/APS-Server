@@ -225,6 +225,8 @@ class AgentHTTPProvider(_HTTPProvider):
 
 
 def create_model_provider(settings: Settings) -> ModelProvider:
+    if not settings.ai_enabled:
+        raise ModelProviderError("AI is disabled", "AI_DISABLED")
     configured, status = provider_status(settings)
     if not configured:
         raise ModelProviderError(

@@ -20,10 +20,12 @@ from .models import (
     OperationName,
     ServiceMaintenanceDueJobRequest,
     VaultAuditJobRequest,
+    VaultContentRefreshJobRequest,
 )
 from .runtime import OperationRegistry, OperationResult, OperationSpec
 from .vault import VaultRepository
 from .vault_files import read_vault_text
+from .vault_catalog import load_vault_documents
 
 
 class OperationError(RuntimeError):
@@ -40,13 +42,15 @@ class OperationHandlers:
         settings: Settings,
         vault: VaultRepository,
         extensions: ExtensionRegistry,
-        agent: AgentExecutor,
+        agent: AgentExecutor | None,
     ) -> None:
         self.vault = vault
         self.agent = agent
         self.extension_host = ExtensionHost(settings, extensions, vault)
 
     def extension_operation(self, request: CreateJobRequest) -> OperationResult:
+        if self.agent is None and request.operation in {OperationName.BRIEFING_DAILY, OperationName.BRIEFING_PROJECT}:
+            raise OperationError("AI is disabled; use Core document content instead", "AI_DISABLED")
         try:
             return OperationResult(output=self.extension_host.execute(request))
         except ExtensionHostError as error:
@@ -80,7 +84,18 @@ class OperationHandlers:
         except (OSError, IdeaCatalogError) as error:
             raise OperationError(str(error), "IDEA_CATALOG_INVALID") from error
 
+    def vault_content(self, _: CreateJobRequest) -> OperationResult:
+        with self.vault.locked():
+            self.vault.require_clean()
+            commit = self.vault.commit()
+            return OperationResult(
+                output={"documents": load_vault_documents(self.vault.root), "ideas": load_idea_catalog(self.vault.root)},
+                vault_commit=commit,
+            )
+
     def ideas_curate(self, _: CreateJobRequest) -> OperationResult:
+        if self.agent is None:
+            raise OperationError("AI curation is disabled; Inbox entries remain pending", "AI_DISABLED")
         try:
             service = IdeaService(self.vault, sync_before_write=False)
             pending = service.pending()
@@ -129,10 +144,19 @@ def build_operation_registry(
     vault: VaultRepository,
     content_store: ContentStore,
     extensions: ExtensionRegistry,
-    agent: AgentExecutor,
+    agent: AgentExecutor | None,
 ) -> OperationRegistry:
     handlers = OperationHandlers(settings, vault, extensions, agent)
     registry = OperationRegistry()
+    registry.register(OperationSpec(
+        name=OperationName.VAULT_CONTENT_REFRESH,
+        owner="core",
+        roles=frozenset({"scheduler", "operator"}),
+        write_mode="none",
+        request_model=VaultContentRefreshJobRequest,
+        handler=handlers.vault_content,
+        publisher=content_store.prepare_vault_content,
+    ))
     registry.register(
         OperationSpec(
             name=OperationName.VAULT_AUDIT,

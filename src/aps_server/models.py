@@ -12,6 +12,7 @@ class OperationName(StrEnum):
     BRIEFING_DAILY = "briefing.daily"
     BRIEFING_PROJECT = "briefing.project"
     VAULT_AUDIT = "vault.audit"
+    VAULT_CONTENT_REFRESH = "vault.content.refresh"
     SERVICE_MAINTENANCE_DUE = "service.maintenance_due"
     IDEAS_INDEX_REFRESH = "ideas.index.refresh"
     IDEAS_CURATE = "ideas.curate"
@@ -73,6 +74,12 @@ class VaultAuditJobRequest(JobRequestModel):
     context: EmptyJobContext = Field(default_factory=EmptyJobContext)
 
 
+class VaultContentRefreshJobRequest(JobRequestModel):
+    operation: Literal[OperationName.VAULT_CONTENT_REFRESH] = OperationName.VAULT_CONTENT_REFRESH
+    input: EmptyJobInput = Field(default_factory=EmptyJobInput)
+    context: EmptyJobContext = Field(default_factory=EmptyJobContext)
+
+
 class ServiceMaintenanceDueJobRequest(JobRequestModel):
     operation: Literal[OperationName.SERVICE_MAINTENANCE_DUE]
     input: ServiceMaintenanceDueInput = Field(default_factory=ServiceMaintenanceDueInput)
@@ -95,6 +102,7 @@ CreateJobRequest = Annotated[
     BriefingDailyJobRequest
     | BriefingProjectJobRequest
     | VaultAuditJobRequest
+    | VaultContentRefreshJobRequest
     | ServiceMaintenanceDueJobRequest
     | IdeasIndexRefreshJobRequest
     | IdeasCurateJobRequest,

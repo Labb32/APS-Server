@@ -46,7 +46,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     vault = VaultRepository(settings.vault_path, push_after_commit=settings.vault_push_after_commit)
     ideas = IdeaService(vault, settings.sync_before_job)
     extensions = ExtensionRegistry(settings.extensions_path)
-    agent = build_agent_executor(settings, vault, extensions)
+    agent = build_agent_executor(settings, vault, extensions) if settings.ai_enabled else None
     operations = build_operation_registry(settings, vault, content_store, extensions, agent)
     runner = JobRunner(settings, store, content_store, vault, operations)
     scheduler = Scheduler(settings, store, runner, extensions, operations)

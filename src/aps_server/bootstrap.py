@@ -177,10 +177,6 @@ def require_ai_provider(settings: Settings) -> None:
 
 def main() -> None:
     load_config_file()
-    if not os.environ.get("APS_AI_PROVIDER", "").strip():
-        raise BootstrapError(
-            "APS_AI_PROVIDER is required; choose openai, openai-compatible, or agent-http"
-        )
     settings = Settings()
     require_ai_provider(settings)
     prepare_git_auth()

@@ -27,6 +27,8 @@ from .content_models import (
     ProjectCatalogResponse,
     ServiceMaintenanceData,
     ServiceMaintenanceResponse,
+    VaultDocumentsData,
+    VaultDocumentsResponse,
 )
 
 
@@ -293,6 +295,17 @@ class ContentStore:
 
     def prepare_ideas(self, payload: dict[str, Any], vault_commit: str) -> list[ContentPublication]:
         return [self._ideas_publication(payload, vault_commit, datetime.now(UTC))]
+
+    def prepare_vault_content(self, payload: dict[str, Any], vault_commit: str) -> list[ContentPublication]:
+        now = datetime.now(UTC)
+        documents = self._build(VaultDocumentsResponse, VaultDocumentsData, "vault_documents", payload["documents"], vault_commit, now)
+        return [
+            ContentPublication(documents, self.root / "vault_documents.json", "/v1/content/vault"),
+            self._ideas_publication(payload["ideas"], vault_commit, now),
+        ]
+
+    def vault_documents(self) -> VaultDocumentsResponse:
+        return self._read(self.root / "vault_documents.json", VaultDocumentsResponse)
 
     def publish(self, publications: list[ContentPublication]) -> None:
         temporary_paths: list[tuple[Path, Path]] = []

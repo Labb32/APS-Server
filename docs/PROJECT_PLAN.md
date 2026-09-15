@@ -1,129 +1,52 @@
-# APS Server 개발 계획
+# APS Server 목표와 개발 범위
 
-## 목표
+기준일: 2026-09-15. 기존 AI·브리핑 중심 MVP 계획을 대체한다. 현재 구현과 남은 작업은 [TASKS](TASKS.md), 선택 기능은 [plugins](../plugins/README.md)에서 관리한다.
 
-현재 FastAPI 골격을 유지하면서 다음 흐름이 실제로 동작하는 서비스 가능한 MVP를 빠르게 완성한다.
+## 제품 목표
 
-```text
-Vault safe sync
-→ 등록된 Job 실행
-→ canonical JSON 검증
-→ materialized result 게시
-→ JSON API 반환
-→ 요청 시 같은 JSON을 HTML로 표시
-```
+APS Server는 APS Vault를 통합 관리하는 백엔드 API다. AI 서비스 없이도 Vault 연결·동기화, 문서 조회, Inbox 축적, 가벼운 유사 문서 검색을 제공한다. AI 사서는 선택적으로 연결하며 기본 실행의 필수 의존성이 아니다.
 
-## 현재 상태
+한 서버는 한 사용자와 한 Vault를 담당한다. Project·Service 원본은 APS Vault가, API·인증·작업 실행·파생 결과는 APS Server가 소유한다.
 
-Core MVP 완료. 아래 후속 범위는 기본 서비스 완료 조건과 분리해 관리한다.
+## 기본 기능
 
-구현됨:
+| 영역 | AI 서비스 없음 (`none`) | AI 서비스 연결 시 |
+|---|---|---|
+| Vault | local/git/mounted 연결, 상태 점검, 안전한 동기화 | 동일 |
+| 문서 API | 기존 Idea·Idea Set·Project·Service 목록 및 상세 | 동일 |
+| Inbox | 고정 `00_Inbox`에 단순 축적·조회, 자동 Idea 정리 없음 | 검증된 정규화·중복 정리·Set 구성 |
+| 검색 | 제목·키워드·요약 중심 lexical 검색과 내장 소형 임베딩 | 사서 작업 후보 탐색에 재사용 |
+| Project | 원문·상태 조회, 자동 정리·제안 없음 | 정리·제안 생성, 원본 반영에는 승인 경계 적용 |
+| 실행 | 비AI 작업용 내부 cron과 Job queue | 내부 cron 또는 외부 AI 큐 서비스로 사서 작업 실행 |
+| 결과 | 검증된 JSON 및 같은 결과의 HTML | 생성 결과도 검증 후 게시, 실패 시 이전 결과 보존 |
 
-- FastAPI 애플리케이션
-- `operator`, `viewer`, `scheduler` bearer 인증
-- 고정 operation과 Idea 전용 `ideas.curate` commit operation
-- in-process Job queue와 파일 기반 Job 상태
-- Vault clean 검사와 fast-forward-only 동기화
-- materialized JSON 조회 API
-- JSON 기반 고정 template HTML renderer
-- Artifact 경로 격리와 healthcheck
-- Job 결과 schema 검증과 canonical checksum
-- 검증된 JSON의 ContentStore 원자적 게시
-- JSON 전용 생성과 저장 JSON 기반 HTML viewer
-- Core-only 기본 실행과 선택 설치형 공식 `briefing` package
-- `title + keywords + summary` 기반 Idea와 Idea set 응답 모델
-- 고정 Vault 디렉터리 기반 Idea 수집 Job과 Core lexical 검색 API
-- 영속 설정 기반 내부 cron Scheduler와 bounded in-process queue
-- 서버 시작 시 queued Job 복구와 중단된 Job의 `JOB_INTERRUPTED` 처리
-- 공식 확장 manifest 검증·설치와 Schedule 자동 등록
-- Core AgentExecutor와 OpenAI Responses·OpenAI 호환·Agent HTTP provider 선택
-- immutable OperationRegistry와 공통 Job result/publication pipeline
-- manifest task 기반 briefing 확장 bridge와 제한된 ExtensionHost
-- read-only Idea·Project·Service Tool registry
-- 구조화된 Idea 정규화·병합·Set 후보 검증 및 batch commit
+`AI 서비스 없음`은 생성형 AI provider/외부 AI 실행 서비스가 없다는 뜻이다. 소형 임베딩은 CPU에서 실행하는 Core 검색 구성요소이며 외부 AI API·GPU·Vector DB를 요구하지 않는다. 대화형 질의응답·대규모 RAG는 기본 검색 범위에서 제외한다.
 
-전환 또는 보완 필요:
+기본 문서 조회는 briefing 생성과 독립적이다. Content GET은 AI·동기화·생성 Job을 시작하지 않는다. Inbox 즉시 조회는 기존 overlay 방식을 사용할 수 있다.
 
-- Idea 큐레이션은 lexical 후보 수집, AI 구조화 분석과 검증된 batch commit까지 연결됨. 대규모 hybrid 검색은 후속 Index 범위
-- 범용 AgentExecutor는 OperationRegistry, briefing 확장과 Idea 큐레이션 handler에 연결됨
-- 공식 확장 update·disable·서명 검증과 `aps-index`가 없음
-- 역할 token은 있지만 기기 token 수명주기가 없음
-- briefing 확장은 범용 bridge를 사용하지만 현재 legacy materializer가 read-only Vault 문서를 직접 읽는 전환 구조
+선택 AI 사서와 내부 cron/외부 AI 큐 지원까지 기본 제품 범위다. 다만 설치 기본값은 `none`이며 AI가 없으면 사서 작업을 실행하지 않는다.
 
-## MVP 구현 범위
+## 선택 기능
 
-### Core 파이프라인
+| 기능 | 구분 | 상세 문서 |
+|---|---|---|
+| `.brief` | 진행 중 Project·운영 Service briefing 확장 | [brief](../plugins/brief/README.md) |
+| `aps-index` | Inbox/Idea를 대규모 RAG·Vector DB 기반으로 대체하는 추가 서비스 | [aps-index](../plugins/aps-index/README.md) |
+| 전체 Vault 백업·마이그레이션 | 보존·복원·이전 확장 | [backup-migration](../plugins/backup-migration/README.md) |
+| 웹훅 연동 | 등록 조건에 따른 Discord·메일 API 요청/응답·전달 확장 | [webhooks](../plugins/webhooks/README.md) |
 
-- operation별 고정 입력 model과 역할 유지
-- Job 결과의 Pydantic/JSON Schema 검증
-- canonical JSON checksum 생성
-- ContentStore 원자적 게시
-- 생성 실패 시 직전 정상 결과 보존
-- JSON 전용 생성과 HTML viewer 분리
+`plugins/`는 현재 설계 문서 격리 위치다. 실행 패키지 `extensions/briefing`이나 installer 경로를 이동하거나 새 설치 명령을 제공하는 것은 아니다.
 
-### Content
+## 유지할 경계
 
-- 일일 브리핑
-- Project 목록과 상세 브리핑
-- Service 목록·상세·유지보수 상태
-- Idea 목록·상세
-- 제목·키워드·요약 기반 lexical Idea 검색
-- Content별 generated/stale/failure 상태
+- 기존 API를 일방적으로 제거하거나 응답 의미를 교체하지 않는다. Core 문서와 briefing 결과 분리에는 호환 계약을 정의한다.
+- 임의 Vault 경로·shell·실행 파일·Codex 인자·자유 형식 agent query를 요청받지 않는다.
+- Inbox 쓰기는 서버가 관리하는 Git-ignored `00_Inbox`에 한정한다. 자동 tracked Idea 쓰기는 검증된 `01_Ideas`/`01_Idea_Sets` 대상의 Scheduler commit 흐름으로 제한한다.
+- 기존 tracked Idea 직접 수정 API는 권한을 확대하지 않고 저장소 지침과 계약의 정합성을 정리한다.
+- Project·Service 원본 쓰기는 proposal branch·diff·명시적 승인 흐름이 준비되기 전까지 비활성이다. 제안 생성과 원본 반영을 구분한다.
+- Vault 동기화는 fast-forward only다. 자동 merge/reset/강제 checkout/force push를 추가하지 않는다.
+- in-process queue를 사용하는 동안 web process는 하나다. 외부 AI 큐 도입만으로 다중 web process를 허용하지 않는다.
 
-### 자동 갱신
+## 완료 판단
 
-- 내부 scheduler가 등록된 고정 Job model을 queue에 등록
-- 숫자 5필드 cron, schedule별 IANA timezone과 최대 24시간 누락분 1회 복구
-- 중복 실행과 idempotency 처리
-- 재시작 시 미완료 Job의 안전한 실패 처리
-- 외부 queue 서비스는 상정하지 않고 단일 APS 프로세스의 내장 queue만 사용
-
-### 공식 확장
-
-- manifest와 호환 버전 규격 및 Schedule 선언
-- 공식 package allowlist와 package-local entrypoint 검증
-- image의 공식 원본에서 영속 설치 경로로 복사하는 CLI
-- 설치 후 재시작 기반 활성화
-- read-only 입력과 canonical JSON 출력
-- 커뮤니티 패키지와 hot loading 제외
-- checksum·서명 검증과 update·disable은 후속 구현
-
-### 배포
-
-- 단일 Uvicorn process
-- Docker Compose 기본 서비스
-- persistent data volume
-- reverse proxy/VPN 운영 안내
-- health/readiness와 장애 시 이전 결과 보존
-
-## 후속 범위
-
-- 승인형 Project proposal을 위한 bounded tool-loop 구현
-
-- 기기별 token 발급·회전·폐기
-- Project·Service용 proposal branch, diff와 명시적 승인 기반 Vault 쓰기
-- 앱 알림 전달 방식
-- 선택형 GPU `aps-index` 서비스와 hybrid 검색
-- 공동 ProjectContext 공유 정책
-
-## 제외 사항
-
-- 자유 형식 agent query
-- 요청자 지정 Vault 경로
-- 임의 shell, executable 또는 Codex 인자
-- 자동 merge, reset, 강제 checkout과 force push
-- 승인 없는 Vault 문서 변경
-- 커뮤니티 플러그인
-- 실행 중 확장 hot loading
-- 다중 web process에서 in-process queue 공유
-
-## MVP 완료 조건
-
-- Job 하나가 최신 Vault commit을 기준으로 유효한 canonical JSON을 생성한다.
-- 검증된 JSON이 ContentStore에 게시되고 즉시 Content API에서 조회된다.
-- JSON과 HTML이 동일한 저장 결과와 checksum을 사용한다.
-- 조회 요청이 Vault sync, AI 또는 생성 Job을 실행하지 않는다.
-- dirty·diverged Vault와 잘못된 operation 입력을 안전하게 거부한다.
-- 실패한 생성이 Vault 원본과 직전 정상 결과를 손상시키지 않는다.
-- 기본 Idea 검색은 `aps-index` 없이 동작한다.
-- 공식 확장은 APS Server의 읽기·검증·권한 경계 안에서만 실행된다.
+기존 MVP 완료 표시는 새 목표의 완료를 의미하지 않는다. AI·확장·추가 서비스 없이 기본 API와 내장 검색을 완성하고, 선택 AI 사서의 내부/외부 실행 경계를 구현한다. 네 선택 기능은 Core 완료 조건과 분리해 진행한다.

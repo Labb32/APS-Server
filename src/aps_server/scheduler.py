@@ -267,6 +267,14 @@ class Scheduler:
                 definition = definition.model_copy(update=changes)
             effective.append(definition)
 
+        if not self.settings.ai_enabled:
+            ai_operations = {"ideas.curate", "briefing.daily", "briefing.project"}
+            effective = [
+                item.model_copy(update={"enabled": False})
+                if item.request.operation in ai_operations else item
+                for item in effective
+            ]
+
         config = ScheduleConfig(version=1, schedules=effective)
         for definition in config.schedules:
             try:
