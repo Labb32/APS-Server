@@ -254,3 +254,11 @@ curl http://127.0.0.1:8080/health/ready \
 `health/ready`는 Vault와 token 설정, 활성 확장 및 선택된 AI provider의 필수 설정을 확인한다. 외부 provider에 실제 생성 요청을 보내지는 않는다.
 
 개인 서버에서 공개 전 검증을 수행할 때는 [Pre-release QA](PRE_RELEASE_QA.md)의 Core-only smoke flow부터 시작해 Git 안전 경계, extension, 장애 복구와 24시간 soak 순서로 진행한다.
+
+## 개인 서버 배포에서 확인할 점
+
+- 로컬 buildx 결과를 즉시 사용할 때는 `docker buildx build --load --tag aps-server:local .`처럼 tag와 `--load`를 명시한다.
+- Compose base와 override는 같은 commit에서 준비한다. 배포 전에 사용한 `-f` 조합 그대로 `docker compose ... config`와 `config --volumes`를 확인한다. 필요한 named volume 선언이 빠진 파일 조합은 기동하지 않는다.
+- `.env`의 host/port 값에는 공백·scheme·inline comment·숨은 CR 문자가 없어야 한다. Windows에서 복사한 파일은 Linux에서 줄바꿈을 확인한다.
+- 수동 Job만 확인할 때는 기동 전에 `APS_SCHEDULER_ENABLED=false`로 설정한다. 기본 Scheduler는 별도 cron 파일 없이도 등록된 일정을 실행할 수 있다. 환경변수 변경은 container 재생성이 필요하다.
+- 설정이 깨져 `down`도 실패하면 먼저 원래 Compose 파일과 env를 복구하고 같은 `-f` 조합으로 종료한다. 복구할 수 없을 때만 대상 container를 확인해 중지한다. Vault·data·인증 named volume은 삭제하지 않는다.

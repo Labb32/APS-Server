@@ -1,6 +1,6 @@
 # APS Server 개선 작업
 
-기준일: 2026-09-15. 목표는 [PROJECT_PLAN](PROJECT_PLAN.md)을 따른다. 아래 상태는 기존 미커밋 변경을 포함한 작업 트리를 읽어 확인한 것이며 실행 검증·배포 완료를 뜻하지 않는다.
+기준일: 2026-09-20. 목표 베타 범위는 [PROJECT_PLAN](PROJECT_PLAN.md)을 따른다. 아래 상태는 기존 작업 트리와 문서를 읽어 정리한 것이며 실행 검증·배포 완료를 뜻하지 않는다. 구체적인 개선 작업은 Git에서 제외된 로컬 [`tasks/001`~`005`](../tasks/001-none-mode-capabilities.md)에 순서대로 작성했다.
 
 ## 현재 구현과 차이
 
@@ -84,15 +84,23 @@
   - 원본 반영이 필요하면 proposal branch·기준 commit·diff·승인/거부·만료를 먼저 구현한다. 준비 전에는 초안만 저장한다.
   - 완료 조건: 제안은 조회 가능하고 승인 전 Project·Service 원본은 바뀌지 않는다. 기본 branch 자동 병합은 추가하지 않는다.
 
+## 목표 베타 빌드 후속 단계
+
+001~005 개선안 완료 후 다음 작업을 별도 계약·구현·직접 호출 확인 순서로 진행한다. 완료 표시가 없는 목표 기능을 활성 API로 문서화하지 않는다.
+
+1. **BETA-API** — 고정 `text/plain` Inbox 접수, Markdown 포함 정규 JSON/고정 HTML, Idea/Project/Service 조회, 제한된 archive Artifact 권한과 오류 계약. [Content API](CONTENT_API.md), [migration](../plugins/backup-migration/README.md).
+2. **BETA-AI** — AI 미연결 시 Core 독립성, 일반 AgentExecutor와 내부 cron/외부 AI 큐·스케줄러의 비동기 접수·상태·취소·결과 계약. Inbox→Idea 정리, 중복/Set, 제한된 Project 제안, Service 운영 현황 결과를 Core 검증·게시 경계에 연결. Project 원본 반영은 승인 흐름 전까지 막는다. [실행 설계](AGENT_EXECUTOR_DESIGN.md).
+3. **BETA-EXT** — 세 공식 확장의 공통 capability, 생명주기, 실행·결과 검증과 개별 개발 항목은 [공식 확장 기획·개발 계획](EXTENSION_PLAN.md)에서 관리한다.
+4. **BETA-INDEX** — aps-index 검색 backend 연결, Idea 중복·Set 후보, 선택적 Inbox/Idea DB 원본 모드의 이관·백업·Markdown export·복귀. Vault 원본과 DB 원본의 장애 정책을 분리한다. [aps-index](../plugins/aps-index/README.md).
+
+베타 완료 조건은 네 단계 모두의 API 계약, 권한·서비스 흐름, AI/확장/색인 미연결 시 Core 동작, 데이터 손상 없는 장애 복구를 확인하는 것이다. 별도 사용자 요청 없이는 테스트 파일·케이스를 생성하거나 테스트 명령을 실행하지 않는다.
+
 ## 선택 기능 작업 위치
 
-- [.brief](../plugins/brief/README.md): 상태 필터·Service briefing·일반 문서와의 분리.
-- [aps-index](../plugins/aps-index/README.md): 대규모 RAG/Vector DB와 Inbox/Idea 저장·검색 대체.
-- [백업·마이그레이션](../plugins/backup-migration/README.md): 전체 보존·복원·이전.
-- [웹훅](../plugins/webhooks/README.md): 조건 등록·Discord/메일 요청·응답·전달.
+공식 확장 개발은 [확장 계획](EXTENSION_PLAN.md)에서, 독립 `aps-index` 서비스는 [서비스 설계](../plugins/aps-index/README.md)에서 관리한다. 웹훅은 [후속 설계](../plugins/webhooks/README.md)에 남긴다.
 
 ## 진행 순서와 확인 정책
 
-CORE-01~04 → SEARCH-01~03 → AI-01~03 순으로 진행한다. 외부 큐 계약은 검색 구현과 독립적으로 설계할 수 있다. 선택 기능은 필요한 Core 계약이 준비된 뒤 별도 진행하며 Core 완료 조건에 포함하지 않는다.
+CORE-01~04 → SEARCH-01~03 → BETA-API/AI → BETA-EXT/INDEX 순으로 진행한다. 기존 AI-01~03은 BETA-AI에서 구현하고, 외부 큐 계약은 검색 구현과 독립적으로 설계할 수 있다. 확장과 aps-index는 필요한 Core 계약이 준비된 뒤 진행한다.
 
 코드·문서·공개 계약을 함께 맞춘 후 작업을 체크한다. 이번 문서 작성에서는 코드 변경이나 테스트 생성·수정·실행을 하지 않았다. 후속 구현 확인은 관련 API·권한·서비스 흐름의 직접 실행으로 계획하며 테스트 파일·케이스·명령은 사용자 명시 요청 시에만 다룬다. 기존 QA 문서도 새 범위로 갱신하되 실행 완료로 간주하지 않는다.

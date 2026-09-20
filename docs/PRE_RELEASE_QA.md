@@ -1,6 +1,6 @@
 # APS Server pre-release QA
 
-실제 개인 Linux 서버에서 확인된 Compose 문제와 재검증 항목은 [개인 서버 Compose QA 발견사항](PERSONAL_SERVER_QA_FINDINGS.md)에 누적한다.
+개인 Linux 서버에서 확인된 Compose 문제와 복구 요점은 [배포 안내](CONTAINER_DEPLOYMENT.md)의 개인 서버 절과 [개발 노트](DEVELOPMENT_NOTES.md)에 정리했다.
 
 이 문서는 `0.1.x`를 개인 서버에서 검증한 뒤 공개 release로 전환하기 위한 실행 기준이다. 새 자동 test file을 만드는 대신 실제 container, API, 권한과 Vault 흐름을 직접 확인하고 결과를 기록한다.
 

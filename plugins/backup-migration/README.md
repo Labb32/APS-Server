@@ -6,7 +6,9 @@
 
 Vault 전체를 백업하고 새 서버·저장 위치로 복원/이전한다. 추적 Markdown뿐 아니라 Git-ignored `00_Inbox`, 첨부 파일과 ProjectContext를 포함한다. Git 이력·ignored 로컬 설정·민감 정보의 포함 여부는 백업 profile에 명시한다. 서버 token·AI credential은 Vault 데이터와 분리한다.
 
-복원·이전은 별도 관리 작업이며 운영자가 사전에 등록한 대상 ID만 사용한다. 요청자가 임의 경로·shell·Git 옵션을 넘기거나 Core 일반 문서 쓰기 권한을 확대하지 않는다.
+복원·이전은 별도 관리 작업이며 운영자가 사전에 등록한 대상 ID만 사용한다. 베타의 archive 다운로드는 인증된 operator가 만료·크기·보존 정책이 적용된 Artifact를 받는 흐름이다. 업로드는 신규 Vault 시작을 위한 staging 영역에만 받으며, 무결성 검사 전에는 사용하지 않는다. 기존 Vault 덮어쓰기는 별도 diff·복구 지점·명시적 승인 흐름 전까지 활성화하지 않는다. 요청자가 임의 경로·shell·Git 옵션을 넘기거나 Core 일반 문서 쓰기 권한을 확대하지 않는다.
+
+archive의 허용 형식, 파일 수·총 크기·압축 해제 한도, symlink/경로 탈출·중첩 archive 처리, 민감 정보 포함 profile, 암호화와 키 보관을 계약으로 고정한다. 업로드/다운로드 endpoint의 이름과 요청 schema는 구현 전에 별도로 확정하며, 일반 Content endpoint로 archive를 반환하지 않는다.
 
 ## 작업
 

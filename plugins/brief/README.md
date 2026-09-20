@@ -1,4 +1,4 @@
-# .brief 확장
+# briefing 확장 (`.brief` 목표 명칭)
 
 상태: 목표 설계. 현재 실행 코드는 [extensions/briefing](../../extensions/briefing/README.md)에 있으며 이번 단계에서는 이동하지 않는다.
 
@@ -10,6 +10,8 @@
 - 일일 종합·대상별 생성 모두 같은 필터를 적용한다. 진행 전/완료 Project와 중지/종료 Service, 개인 일정은 제외한다.
 - AI 생성은 Core의 선택 AI 실행 경계를 사용한다. AI가 없으면 생성은 비활성이며 이전 결과의 조회·stale·대상 상태 변경 정책을 정의한다.
 - 파생 JSON/HTML을 게시하며 Project·Service 원본을 직접 수정하지 않는다.
+- JSON은 기준 Vault revision, 생성 시각, 대상 ID, 근거와 stale 상태를 포함하고, HTML은 서버에 사전 등록한 template으로 같은 JSON을 표시한다. AI는 HTML/template을 생성하지 않는다.
+- 내부 cron과 외부 AI 큐 중 어느 실행 경로를 사용해도 동일한 입력·결과 schema 및 게시 검증을 거친다. 미연결 시 이전 정상 결과는 조회할 수 있으나 새 생성은 비활성으로 표시한다.
 
 ## 작업
 

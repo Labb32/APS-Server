@@ -6,7 +6,7 @@
 
 Inbox/Idea의 저장·검색 처리를 대규모 RAG/Vector DB 기반으로 대체할 수 있는 별도 서비스다. 대용량 수집·색인·검색을 담당하며 Core 확장 subprocess 대신 독립 서비스로 배포한다.
 
-검색 backend 교체와 Inbox/Idea 영속 저장 backend 교체를 구분한다. Vector index만으로 원문 저장을 대체하지 않는다. DB가 원본을 맡는 모드에는 durable 원문·metadata 저장, 변경 이력, Markdown export와 복귀 경로가 필요하다. 이는 현재 Vault 원본 원칙의 변경이므로 소유권·쓰기 계약을 명문화한 뒤 구현한다. Project·Service 원본은 계속 Vault 소유다.
+검색 backend 교체와 Inbox/Idea 영속 저장 backend 교체를 구분한다. Vector index만으로 원문 저장을 대체하지 않는다. DB가 원본을 맡는 모드에는 durable 원문·metadata 저장, 변경 이력, Markdown export와 복귀 경로가 필요하다. 이는 현재 Vault 원본 원칙의 변경이므로 소유권·쓰기 계약을 명문화한 뒤 구현한다. Project·Service 원본은 계속 Vault 소유다. Idea 생성·중복 후보·유사 Idea Set 후보는 기존 API와 사서 operation에 결과를 제공하되, 검색 후보가 직접 tracked 문서를 수정하지 않는다.
 
 ## 작업
 
