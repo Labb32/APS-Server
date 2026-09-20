@@ -6,7 +6,7 @@
   "aps_api": "1",
   "entrypoint": "entrypoint.py",
   "resources": [
-    "legacy/daily_briefing.py",
+    "briefing_core.py",
     "schemas/briefing_response.schema.json"
   ],
   "capabilities": [

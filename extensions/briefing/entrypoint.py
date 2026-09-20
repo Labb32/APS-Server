@@ -3,31 +3,15 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import importlib.util
 import json
 import os
 import re
 import sys
 from datetime import date, timedelta
 from pathlib import Path
-from types import ModuleType
 from typing import Any
 
-
-ROOT = Path(__file__).resolve().parent
-LEGACY_PATH = ROOT / "legacy" / "daily_briefing.py"
-RESPONSE_SCHEMA_PATH = ROOT / "schemas" / "briefing_response.schema.json"
-
-
-def load_legacy() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("aps_official_briefing_legacy", LEGACY_PATH)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"legacy briefing module cannot be loaded: {LEGACY_PATH}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    module.RESPONSE_SCHEMA_PATH = RESPONSE_SCHEMA_PATH
-    return module
+import briefing_core as core
 
 
 def stable_id(prefix: str, value: str) -> str:
@@ -37,7 +21,7 @@ def stable_id(prefix: str, value: str) -> str:
     return f"{prefix}-{slug}"[:80].rstrip("-")
 
 
-def project_records(legacy: ModuleType, notes: list[Any], results: list[Any]) -> list[dict[str, Any]]:
+def project_records(notes: list[core.Note], results: list[core.ProjectResult]) -> list[dict[str, Any]]:
     note_by_id = {note.metadata.get("briefing_id", ""): note for note in notes}
     records: list[dict[str, Any]] = []
     for result in results:
@@ -78,10 +62,10 @@ def project_records(legacy: ModuleType, notes: list[Any], results: list[Any]) ->
     return records
 
 
-def service_records(legacy: ModuleType, notes: list[Any], today: date) -> list[dict[str, Any]]:
+def service_records(notes: list[core.Note], today: date) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     for note in notes:
-        if note.metadata.get("service_status") not in legacy.ACTIVE_SERVICE_STATES:
+        if note.metadata.get("service_status") not in core.ACTIVE_SERVICE_STATES:
             continue
         issues: list[dict[str, Any]] = []
         interval: int | None = None
@@ -96,7 +80,7 @@ def service_records(legacy: ModuleType, notes: list[Any], today: date) -> list[d
                 raise ValueError("maintenance_interval_days must be zero or greater")
             if parsed_interval > 0:
                 interval = parsed_interval
-                last = legacy.parse_iso_date(note.metadata.get("last_maintenance", ""), "last_maintenance", note.path)
+                last = core.parse_iso_date(note.metadata.get("last_maintenance", ""), "last_maintenance", note.path)
                 due = last + timedelta(days=interval)
                 if today < due:
                     due_status = "upcoming"
@@ -171,35 +155,19 @@ def main() -> int:
     if not vault.is_dir():
         raise RuntimeError(f"APS Vault directory does not exist: {vault}")
     today = date.fromisoformat(args.today) if args.today else date.today()
-    legacy = load_legacy()
-
-    projects = legacy.load_notes(vault / "02_Projects")
-    services = legacy.load_notes(vault / "03_Services")
-    config = {
-        "runner": {
-            # Provider selection remains in APS Core; the extension invokes a
-            # fixed bridge and cannot choose a model, endpoint or executable.
-            "command": [
-                sys.executable,
-                "-m",
-                "aps_server.ai_bridge",
-                "--task",
-                "briefing.project-analyze",
-            ],
-            "timeout_seconds": int(os.environ.get("APS_AI_TIMEOUT_SECONDS", "600")),
-            "parallel_projects": int(os.environ.get("APS_AI_PARALLEL_REQUESTS", "3")),
-        }
-    }
-    results = legacy.run_project_briefings(
+    projects = core.load_notes(vault / "02_Projects")
+    services = core.load_notes(vault / "03_Services")
+    results = core.run_project_briefings(
         projects,
-        config,
         vault,
         today,
         args.dry_run,
         args.project,
+        int(os.environ.get("APS_AI_TIMEOUT_SECONDS", "600")),
+        int(os.environ.get("APS_AI_PARALLEL_REQUESTS", "3")),
     )
-    project_data = project_records(legacy, projects, results)
-    service_data = service_records(legacy, services, today)
+    project_data = project_records(projects, results)
+    service_data = service_records(services, today)
     partial_failure = any(project["issues"] for project in project_data) or any(service["issues"] for service in service_data)
     payload = {
         "partial_failure": partial_failure,

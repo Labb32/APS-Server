@@ -1,6 +1,6 @@
 # APS Official Briefing Extension
 
-APS Vault의 기존 `scripts/daily_briefing.py`와 관련 문서를 APS Server 공식 확장으로 이전한 작업 폴더다. 원본 Vault 파일은 삭제하거나 수정하지 않았다.
+APS Server에 포함된 공식 브리핑 package다. Project·Service 문서를 읽고 검증 대상 JSON을 반환한다.
 
 이 디렉터리는 설치 가능한 공식 package 원본이며 APS Server 기본 상태에서는 활성화되지 않는다.
 
@@ -27,16 +27,15 @@ aps extensions install briefing
 briefing/
 ├─ manifest.json
 ├─ entrypoint.py
+├─ briefing_core.py
 ├─ schemas/
 │  └─ briefing_response.schema.json
-└─ legacy/
-   ├─ daily_briefing.py
-   ├─ project_briefing_kit/
-   ├─ web/
-   └─ docs/
+├─ contracts.py
+└─ prompts/
+   └─ project-analyze.md
 ```
 
-`legacy/`는 Vault에서 복사한 원본과 문서다. 활성 진입점은 `entrypoint.py`이며 legacy 모듈의 문서 읽기와 구조화 응답 parsing 부분만 재사용한다.
+`briefing_core.py`는 문서 읽기와 고정 Core AI bridge 호출만 담당한다. 사용자 지정 실행 명령, 자체 Git 동기화, HTML 생성 기능은 없다.
 
 ## 확인된 의존성
 
@@ -45,13 +44,6 @@ briefing/
 - Project 문서의 `briefing_id`
 - `05_ProjectContexts/<briefing_id>/.brief/brief.md`
 - APS Core AI bridge와 `schemas/briefing_response.schema.json`
-
-다음 legacy 기능은 활성 진입점에서 사용하지 않는다.
-
-- 자체 Git pull
-- `.aps.local.json`의 사용자 지정 runner command
-- HTML 생성과 브라우저 실행
-- Vault 내부 script 위치를 기준으로 한 실행
 
 provider, endpoint, model과 credential은 APS Server 설정에만 존재한다. 확장은 이를 요청 인자나 manifest로 받지 않는다. 지원 provider는 [AI provider 설정](../../docs/AI_PROVIDERS.md)을 따른다.
 
