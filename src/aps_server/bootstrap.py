@@ -8,7 +8,6 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from .agent.providers import provider_status
 from .config import Settings
 from .extensions import OfficialExtensionInstaller
 
@@ -167,18 +166,9 @@ def prepare_extensions(settings: Settings) -> None:
             raise BootstrapError(f"unknown official initial extension: {extension_id}") from error
 
 
-def require_ai_provider(settings: Settings) -> None:
-    configured, status = provider_status(settings)
-    if configured:
-        return
-    provider = status["provider"]
-    raise BootstrapError(f"selected AI provider is not ready: {provider}")
-
-
 def main() -> None:
     load_config_file()
     settings = Settings()
-    require_ai_provider(settings)
     prepare_git_auth()
     prepare_vault(settings)
     prepare_extensions(settings)

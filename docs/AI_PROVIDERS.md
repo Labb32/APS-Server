@@ -6,11 +6,12 @@ APS Server는 AI 호출을 Core `AgentExecutor`와 provider adapter에서 정규
 
 | `APS_AI_PROVIDER` | 용도 | 필수 설정 |
 |---|---|---|
+| `none` | Core만 사용, AI 작업 비활성 | 없음 |
 | `openai` | OpenAI Responses API | `APS_AI_API_KEY`, `APS_AI_MODEL` |
 | `openai-compatible` | vLLM 등 Chat Completions 호환 API | `APS_AI_BASE_URL`, `APS_AI_MODEL` |
 | `agent-http` | 별도 APS Agent 서비스 | `APS_AI_BASE_URL` |
 
-기본 provider는 없다. 세 provider 중 하나를 `.env` 또는 `APS_CONFIG_FILE`에 반드시 지정한다. 설정이 빠지면 container bootstrap이 실패하고 readiness도 준비되지 않은 상태를 반환한다.
+기본값은 `APS_AI_PROVIDER=none`이다. AI 없이 Core API를 사용할 수 있다. AI provider를 선택했지만 필수 설정이 없거나 endpoint가 잘못되면 서버는 기동하고 AI operation만 `PROVIDER_NOT_CONFIGURED`로 비활성화한다.
 
 기본 image는 Python Core만 포함하며 Node.js, Codex CLI와 provider SDK를 포함하지 않는다. HTTP 요청은 Python 표준 라이브러리로 전송한다.
 
@@ -117,5 +118,5 @@ OperationHandler
 - `APS_AI_BASE_URL`에 user/password를 포함할 수 없으며 인증은 `APS_AI_API_KEY`만 사용한다.
 - OpenAI provider는 HTTPS 고정 endpoint를 사용한다.
 - 내부 provider는 외부 port를 열지 않은 격리 container network 사용을 권장한다.
-- `health/ready`는 실제 모델 호출 없이 필수 설정만 검사한다.
+- `health/ready`는 Core 준비 상태를 확인한다. AI 설정은 `/v1/operations`의 가용성과 비활성 이유로 확인한다. provider 연결 장애는 실제 생성 Job에서 확인한다.
 - provider 장애 시 생성 Job만 실패하며 직전 정상 materialized Content는 유지한다.

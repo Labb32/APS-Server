@@ -104,18 +104,18 @@ class JobRunner:
         if stored.public.status == JobStatus.CANCELLED:
             return
         try:
+            stored.public.started_at = datetime.now(UTC)
+            spec = self.operations.get(stored.request.operation)
+            self.operations.require_available(spec)
             if self.settings.sync_before_job:
                 stored.public.status = JobStatus.SYNCING
-                stored.public.started_at = datetime.now(UTC)
                 self.store.save(stored)
                 stored.public.vault_commit = self.vault.sync()
             else:
-                stored.public.started_at = datetime.now(UTC)
                 stored.public.vault_commit = self.vault.commit() if (self.vault.root / ".git").exists() else "unversioned-test-vault"
 
             stored.public.status = JobStatus.RUNNING
             self.store.save(stored)
-            spec = self.operations.get(stored.request.operation)
             operation_result = self.operations.execute(stored.request)
             if operation_result.vault_commit is not None:
                 stored.public.vault_commit = operation_result.vault_commit

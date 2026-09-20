@@ -1,6 +1,6 @@
 # APS Server API Reference
 
-문서 버전 `0.1.0` · 기준일 `2026-09-01`
+문서 버전 `0.1.0` · 기준일 `2026-09-20`
 
 이 문서는 현재 FastAPI 애플리케이션이 제공하는 실제 client 계약이다. 전체 machine-readable schema는 [aps-api.openapi.json](../specs/aps-api.openapi.json), 향후 endpoint와 설계 배경은 [CONTENT_API.md](CONTENT_API.md), 구성 요소 경계는 [ARCHITECTURE.md](ARCHITECTURE.md)를 참고한다.
 
@@ -88,7 +88,9 @@ APS Server는 IP, Origin 또는 proxy header를 사용자 인증 근거로 사�
 | `422` | `REQUEST_VALIDATION_FAILED` | body, path 또는 query schema 오류 |
 | `500` | `CONTENT_INVALID` | 저장 JSON의 schema/checksum 오류 |
 | `500` | `INTERNAL_ERROR` | 분류되지 않은 서버 오류 |
-| `503` | `DEPENDENCY_NOT_READY` | 설정, 선택된 AI provider 또는 공식 확장 미준비 |
+| `503` | `DEPENDENCY_NOT_READY` | Core Vault 또는 인증 설정 미준비 |
+| `503` | `AI_DISABLED` | AI provider가 `none`인 작업 요청 |
+| `503` | `PROVIDER_NOT_CONFIGURED` | 선택한 AI provider 설정이 부족한 작업 요청 |
 | `503` | `JOB_QUEUE_UNAVAILABLE` | 내장 queue가 가득 찼거나 종료 중 |
 | `503` | `OPERATION_NOT_AVAILABLE` | 필요한 공식 확장이 설치되지 않음 |
 
@@ -106,15 +108,15 @@ APS Server는 IP, Origin 또는 proxy header를 사용자 인증 근거로 사�
 
 ### `GET /health/ready`
 
-Token, Vault 설정과 명시적으로 선택한 AI provider의 준비 상태를 확인한다. AI provider는 Core-only 서버에서도 필수이며, `briefing`이 활성화된 경우에는 package 필수 파일도 추가 확인한다.
+Core의 token과 Vault 준비 상태를 확인한다. AI provider나 선택 확장의 부재·장애는 Core readiness를 실패로 바꾸지 않는다. 설치된 확장 manifest 자체가 잘못되면 보안상 서버 기동이 실패할 수 있다.
 
 성공 `200`: `{"status":"ready"}`
 
-실패: `401 AUTHENTICATION_REQUIRED`, `503 DEPENDENCY_NOT_READY`. `503`의 `details[0]`에는 `configured`, 비밀값을 제외한 `ai`, `briefing_installed`, `brief_extension`, `missing_brief_files`가 포함된다.
+실패: `401 AUTHENTICATION_REQUIRED`, `503 DEPENDENCY_NOT_READY`. `503`의 `details[0].configured`는 `false`다.
 
 ### `GET /v1/operations`
 
-호출 role이 실행할 수 있는 operation만 반환한다.
+호출 role에 허용된 operation만 반환한다. AI 작업은 provider가 없거나 설정이 부족할 때도 목록에 남고 `enabled:false`, `disabled_reason:AI_DISABLED` 또는 `PROVIDER_NOT_CONFIGURED`를 표시한다.
 
 성공 `200`:
 
@@ -125,6 +127,8 @@ Token, Vault 설정과 명시적으로 선택한 AI provider의 준비 상태를
   ]
 }
 ```
+
+비활성 AI 작업의 예: `{"name":"ideas.curate","write_mode":"commit","enabled":false,"disabled_reason":"AI_DISABLED"}`.
 
 실패: `401 AUTHENTICATION_REQUIRED`.
 
@@ -185,7 +189,7 @@ Token, Vault 설정과 명시적으로 선택한 AI provider의 준비 상태를
 }
 ```
 
-Core Schedule은 `${APS_DATA_PATH}/schedules.json`, 확장 Schedule은 설치된 manifest에서 읽는다. `${APS_DATA_PATH}/schedule-overrides.json`은 같은 ID의 `cron`, `timezone`, `enabled`만 재정의한다. 서버 시작 시 세 계층을 합쳐 계약과 권한을 검증한다. 설정 변경은 재시작 후 적용된다.
+Core Schedule은 `${APS_DATA_PATH}/schedules.json`, 확장 Schedule은 설치된 manifest에서 읽는다. `${APS_DATA_PATH}/schedule-overrides.json`은 같은 ID의 `cron`, `timezone`, `enabled`만 재정의한다. AI 의존 작업이 비활성이면 해당 schedule의 `enabled`는 `false`, `disabled_reason`은 `AI_DISABLED` 또는 `PROVIDER_NOT_CONFIGURED`다. 가용한 작업은 `disabled_reason:null`이다. 설정 변경은 재시작 후 적용된다.
 
 실패: `401 AUTHENTICATION_REQUIRED`, `403 OPERATION_FORBIDDEN`.
 
@@ -297,6 +301,7 @@ Idempotency-Key: device-01-20260901-ideas-refresh
 | `403` | `OPERATION_FORBIDDEN` |
 | `409` | `IDEMPOTENCY_KEY_REUSED` |
 | `422` | `REQUEST_VALIDATION_FAILED` |
+| `503` | `AI_DISABLED`, `PROVIDER_NOT_CONFIGURED`, `OPERATION_NOT_AVAILABLE` |
 
 ### `GET /v1/jobs/{job_id}`
 

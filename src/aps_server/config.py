@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     initial_extensions: str = ""
     index_url: AnyHttpUrl | None = None
     ai_provider: Literal["none", "openai", "openai-compatible", "agent-http"] = "none"
-    ai_base_url: AnyHttpUrl | None = None
+    ai_base_url: str | None = None
     ai_api_key: SecretStr | None = None
     ai_model: str = ""
     ai_timeout_seconds: int = Field(default=600, ge=10, le=7200)
@@ -61,12 +61,10 @@ class Settings(BaseSettings):
 
     @field_validator("ai_base_url")
     @classmethod
-    def reject_provider_url_credentials(cls, value: AnyHttpUrl | None) -> AnyHttpUrl | None:
-        if value is not None and (value.username or value.password):
-            raise ValueError("APS_AI_BASE_URL must not contain credentials; use APS_AI_API_KEY")
-        if value is not None and (value.query or value.fragment):
-            raise ValueError("APS_AI_BASE_URL must not contain a query or fragment")
-        return value
+    def normalize_ai_base_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
 
     @field_validator("vault_git_url")
     @classmethod
@@ -104,18 +102,6 @@ class Settings(BaseSettings):
             raise ValueError("APS API tokens must be distinct")
         if self.vault_push_after_commit and self.vault_mode == "local":
             raise ValueError("APS_VAULT_PUSH_AFTER_COMMIT requires git or mounted Vault mode")
-        if self.ai_provider == "openai":
-            if self.ai_api_key is None or not self.ai_api_key.get_secret_value().strip():
-                raise ValueError("APS_AI_API_KEY is required when APS_AI_PROVIDER=openai")
-            if not self.ai_model.strip():
-                raise ValueError("APS_AI_MODEL is required when APS_AI_PROVIDER=openai")
-        elif self.ai_provider == "openai-compatible":
-            if self.ai_base_url is None:
-                raise ValueError("APS_AI_BASE_URL is required when APS_AI_PROVIDER=openai-compatible")
-            if not self.ai_model.strip():
-                raise ValueError("APS_AI_MODEL is required when APS_AI_PROVIDER=openai-compatible")
-        elif self.ai_provider == "agent-http" and self.ai_base_url is None:
-            raise ValueError("APS_AI_BASE_URL is required when APS_AI_PROVIDER=agent-http")
         return self
 
     @property

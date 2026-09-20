@@ -20,6 +20,18 @@ class OperationRegistryError(RuntimeError):
     code = "OPERATION_NOT_AVAILABLE"
 
 
+class OperationUnavailableError(OperationRegistryError):
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+@dataclass(frozen=True, slots=True)
+class OperationAvailability:
+    enabled: bool
+    reason: str | None = None
+
+
 @dataclass(frozen=True, slots=True)
 class OperationResult:
     """Validated handler output before optional publication."""
@@ -38,6 +50,7 @@ class OperationSpec:
     request_model: type[JobRequestModel]
     handler: OperationHandler
     publisher: ResultPublisher | None = None
+    requires_ai: bool = False
 
     def __post_init__(self) -> None:
         if not _ROLE.fullmatch(self.owner):
@@ -53,9 +66,11 @@ class OperationSpec:
 class OperationRegistry:
     """Operation policy surface assembled once during application startup."""
 
-    def __init__(self) -> None:
+    def __init__(self, ai_enabled: bool = False, ai_configured: bool = False) -> None:
         self._specs: dict[OperationName, OperationSpec] = {}
         self._frozen = False
+        self._ai_enabled = ai_enabled
+        self._ai_configured = ai_configured
 
     def register(self, spec: OperationSpec) -> None:
         if self._frozen:
@@ -75,6 +90,7 @@ class OperationRegistry:
 
     def execute(self, request: CreateJobRequest) -> OperationResult:
         spec = self.get(request.operation)
+        self.require_available(spec)
         if not isinstance(request, spec.request_model):
             raise TypeError(f"request model does not match operation: {request.operation}")
         result = spec.handler(request)
@@ -84,6 +100,20 @@ class OperationRegistry:
 
     def for_role(self, role: str) -> tuple[OperationSpec, ...]:
         return tuple(spec for spec in self._specs.values() if role in spec.roles)
+
+    def availability(self, spec: OperationSpec) -> OperationAvailability:
+        if not spec.requires_ai:
+            return OperationAvailability(True)
+        if not self._ai_enabled:
+            return OperationAvailability(False, "AI_DISABLED")
+        if not self._ai_configured:
+            return OperationAvailability(False, "PROVIDER_NOT_CONFIGURED")
+        return OperationAvailability(True)
+
+    def require_available(self, spec: OperationSpec) -> None:
+        availability = self.availability(spec)
+        if not availability.enabled:
+            raise OperationUnavailableError(availability.reason or "OPERATION_NOT_AVAILABLE", "AI operation is unavailable")
 
     @property
     def names(self) -> frozenset[OperationName]:

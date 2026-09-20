@@ -2573,6 +2573,9 @@
                     "$ref": "#/components/schemas/VaultAuditJobRequest"
                   },
                   {
+                    "$ref": "#/components/schemas/VaultContentRefreshJobRequest"
+                  },
+                  {
                     "$ref": "#/components/schemas/ServiceMaintenanceDueJobRequest"
                   },
                   {
@@ -2588,6 +2591,7 @@
                     "briefing.daily": "#/components/schemas/BriefingDailyJobRequest",
                     "briefing.project": "#/components/schemas/BriefingProjectJobRequest",
                     "vault.audit": "#/components/schemas/VaultAuditJobRequest",
+                    "vault.content.refresh": "#/components/schemas/VaultContentRefreshJobRequest",
                     "service.maintenance_due": "#/components/schemas/ServiceMaintenanceDueJobRequest",
                     "ideas.index.refresh": "#/components/schemas/IdeasIndexRefreshJobRequest",
                     "ideas.curate": "#/components/schemas/IdeasCurateJobRequest"
@@ -4464,6 +4468,7 @@
           "briefing.daily",
           "briefing.project",
           "vault.audit",
+          "vault.content.refresh",
           "service.maintenance_due",
           "ideas.index.refresh",
           "ideas.curate"
@@ -4851,6 +4856,17 @@
             "type": "boolean",
             "title": "Enabled"
           },
+          "disabled_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disabled Reason"
+          },
           "request": {
             "additionalProperties": true,
             "type": "object",
@@ -5235,6 +5251,25 @@
           "operation"
         ],
         "title": "VaultAuditJobRequest"
+      },
+      "VaultContentRefreshJobRequest": {
+        "properties": {
+          "operation": {
+            "type": "string",
+            "const": "vault.content.refresh",
+            "title": "Operation",
+            "default": "vault.content.refresh"
+          },
+          "input": {
+            "$ref": "#/components/schemas/EmptyJobInput"
+          },
+          "context": {
+            "$ref": "#/components/schemas/EmptyJobContext"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "VaultContentRefreshJobRequest"
       }
     },
     "securitySchemes": {

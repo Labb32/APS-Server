@@ -148,6 +148,9 @@ class ExtensionHost:
         except (OSError, subprocess.TimeoutExpired) as error:
             raise ExtensionHostError("extension process could not complete") from error
         if completed.returncode:
+            # Official extension protocol: exit 20 means its fixed AI bridge failed.
+            if completed.returncode == 20:
+                raise ExtensionHostError("AI provider execution failed", "PROVIDER_EXECUTION_FAILED")
             detail = (completed.stderr or completed.stdout or "no output").strip()
             if self.settings.ai_api_key:
                 detail = detail.replace(self.settings.ai_api_key.get_secret_value(), "***")

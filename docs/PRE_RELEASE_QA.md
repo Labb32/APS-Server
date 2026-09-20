@@ -32,7 +32,7 @@ docker compose ps
 docker compose logs --tail=200 aps-server
 ```
 
-세 역할 token은 서로 다른 무작위 값으로 바꾸고 `.env`가 `git status --short`에 나타나지 않는지 확인한다. `APS_AI_PROVIDER`는 검증할 Agent adapter를 명시적으로 선택한다. 첫 검증은 `APS_BIND_HOST=127.0.0.1`, `APS_VAULT_MODE=local`, `APS_INITIAL_EXTENSIONS=`로 시작한다.
+세 역할 token은 서로 다른 무작위 값으로 바꾸고 `.env`가 `git status --short`에 나타나지 않는지 확인한다. 첫 검증은 `APS_AI_PROVIDER=none`, `APS_BIND_HOST=127.0.0.1`, `APS_VAULT_MODE=local`, `APS_INITIAL_EXTENSIONS=`로 시작한다. AI adapter 검증은 이후 provider를 명시적으로 선택해 진행한다.
 
 ## 3. Core-only smoke flow
 
@@ -103,7 +103,7 @@ docker compose exec aps-server aps extensions install briefing
 docker compose restart aps-server
 ```
 
-설치 뒤 `briefing.daily`, `briefing.project`, `service.maintenance_due`와 manifest의 두 schedule이 추가되는지 확인한다. 같은 설치 명령은 idempotent해야 한다. 설정한 AI provider에 대해 readiness, timeout, 구조화 JSON 검증과 provider 장애 시 이전 결과 보존을 확인한다. API 요청자가 provider, model, base URL, credential 또는 자유 prompt를 지정할 수 없어야 한다.
+설치 뒤 `briefing.daily`, `briefing.project`, `service.maintenance_due`와 manifest의 두 schedule이 추가되는지 확인한다. 같은 설치 명령은 idempotent해야 한다. AI 미연결·설정 오류에서는 Core readiness와 비활성 이유를, 연결 장애에서는 Job 실패와 이전 결과 보존을 확인한다. API 요청자가 provider, model, base URL, credential 또는 자유 prompt를 지정할 수 없어야 한다.
 
 ## 8. 재시작과 장애 복구
 

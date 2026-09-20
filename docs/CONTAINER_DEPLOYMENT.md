@@ -144,7 +144,7 @@ APS_AI_STRUCTURED_OUTPUT=true
 
 별도 Agent 서비스는 `APS_AI_PROVIDER=agent-http`와 task endpoint의 정확한 URL을 사용한다. 인증이 필요하면 Git에 포함되지 않는 env 또는 secret mount에서 `APS_AI_API_KEY`를 전달한다. 공개 API 요청자는 provider, URL, model과 credential을 지정할 수 없다.
 
-`APS_AI_PROVIDER`가 없거나 빈 값이면 container bootstrap이 실패한다. `openai`는 `APS_AI_API_KEY`와 `APS_AI_MODEL`, `openai-compatible`은 `APS_AI_BASE_URL`과 `APS_AI_MODEL`, `agent-http`는 `APS_AI_BASE_URL`이 함께 필요하다. bootstrap을 거치지 않고 Uvicorn을 직접 실행한 개발 환경에서는 같은 문제가 readiness 실패로 표시된다.
+`APS_AI_PROVIDER`의 기본값은 `none`이다. 선택한 provider의 key·model·endpoint가 부족해도 Core는 기동하며 AI operation만 `PROVIDER_NOT_CONFIGURED`로 비활성화한다. 필수 값은 `openai`의 key/model, `openai-compatible`의 base URL/model, `agent-http`의 base URL이다.
 
 전체 provider 계약과 호환 모드는 [AI provider 설정](AI_PROVIDERS.md)을 참고한다.
 
@@ -251,7 +251,7 @@ curl http://127.0.0.1:8080/health/ready \
   -H "Authorization: Bearer $APS_OPERATOR_TOKEN"
 ```
 
-`health/ready`는 Vault와 token 설정, 활성 확장 및 선택된 AI provider의 필수 설정을 확인한다. 외부 provider에 실제 생성 요청을 보내지는 않는다.
+`health/ready`는 Vault와 token 설정의 Core 준비 상태를 확인한다. 선택 AI의 설정 상태는 `/v1/operations`에서 확인하며, 실제 provider 연결 장애는 생성 Job 결과에 나타난다.
 
 개인 서버에서 공개 전 검증을 수행할 때는 [Pre-release QA](PRE_RELEASE_QA.md)의 Core-only smoke flow부터 시작해 Git 안전 경계, extension, 장애 복구와 24시간 soak 순서로 진행한다.
 

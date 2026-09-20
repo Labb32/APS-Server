@@ -6,23 +6,24 @@
 
 | 영역 | 확인한 코드 | 현재 상태와 남은 차이 |
 |---|---|---|
-| AI 선택화 | `config.py`, `main.py`, `agent/providers.py`, `bootstrap.py` | 작업 트리에 `none` 기본값·선택 executor 변경 있음. readiness와 안내까지 정합성 확인 필요 |
-| 작업 차단 | `operations.py`, `scheduler.py` | `AI_DISABLED`와 일부 schedule 필터 있음. AI operation은 registry에 남고 분류가 하드코딩됨 |
+| AI 선택화 | `config.py`, `main.py`, `agent/providers.py`, `bootstrap.py` | `none` 기본값, Core readiness와 선택 AI 가용성 분리 완료. 변경은 아직 미커밋 |
+| 작업 차단 | `operations.py`, `scheduler.py` | operation metadata 기반 AI 가용성, Job 즉시 거부, schedule 비활성 이유 적용 완료 |
 | 비AI 문서 | `vault_catalog.py`, `content_store.py`, `models.py` | `vault.content.refresh`와 Project·Service materializer 추가 중. 공개 목록·상세 및 기존 briefing 계약과 통합 필요 |
 | Inbox·Idea | `idea_api.py`, `idea_service.py` | Inbox 축적·overlay 조회, AI curate 및 merge/Set 요청 존재. none 모드 정책과 초기 조회 보완 필요 |
 | 검색 | `idea_search.py`, `pyproject.toml` | Idea 전용 lexical/문자열 유사도. 소형 임베딩·공통 문서 검색 없음 |
-| 내부 실행 | `runner.py`, `scheduler.py` | in-process queue·cron·Job 상태 있음. AI 가용성에 따른 정책 보완 필요 |
+| 내부 실행 | `runner.py`, `scheduler.py` | in-process queue·cron·Job 상태와 AI 가용성 정책 적용. 외부 큐는 별도 작업 |
 | 외부 AI 실행 | `agent/providers.py` | Agent HTTP provider 있음. 비동기 외부 큐의 접수·상태·결과 계약은 별도 구현 필요 |
 | 선택 기능 | `extensions/briefing`, `extensions.py`, `config.py` | briefing 패키지와 index URL 설정 있음. 기능별 후속 작업은 plugins 문서에 격리 |
 
 ## P0 — AI 없는 Core 경계
 
-- [ ] **CORE-01 — none 모드와 capability 통일**
+- [x] **CORE-01 — none 모드와 capability 통일**
   - 대상: `config.py`, `bootstrap.py`, `main.py`, `operations.py`, `runtime/operations.py`, `scheduler.py`, `extensions.py`.
   - AI 없는 정상 상태와 AI 설정 오류·외부 장애를 구별한다. 선택 서비스 장애가 기본 API를 막지 않도록 readiness와 선택 기능 상태를 분리한다.
   - operation별 AI 필요 여부를 공통 metadata로 정의하고 수동 요청·cron·확장 실행에서 동일하게 검사한다.
   - 기존 operation 계약을 유지하며 비활성 이유를 노출하고 실행을 거부한다. 비활성 AI 작업을 cron이 반복 등록하지 않게 한다.
   - 완료 조건: provider/key/model과 확장 없이 기동·기본 API 사용이 가능하며 AI 작업은 실행·원본 변경 없이 일관된 비활성 상태를 반환한다.
+  - 확인: 임시 Vault에서 `none`, 누락·잘못된 endpoint, 연결 실패 provider의 health·operations·Job·Scheduler·권한 흐름을 직접 호출했다. 코드 테스트는 실행하지 않았다.
 
 - [ ] **CORE-02 — 일반 문서 API와 briefing 분리**
   - 대상: `vault_catalog.py`, `content_models.py`, `content_store.py`, `content_api.py`, `html_renderer.py`, `templates/`, `models.py`, `operations.py`.

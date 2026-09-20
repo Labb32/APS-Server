@@ -172,6 +172,7 @@ class ScheduleView(BaseModel):
     cron: str
     timezone: str
     enabled: bool
+    disabled_reason: str | None = None
     request: dict[str, Any]
     runtime: ScheduleRuntime
 

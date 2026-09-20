@@ -188,4 +188,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except core.BriefingProviderError:
+        print("AI provider execution failed", file=sys.stderr)
+        raise SystemExit(20) from None

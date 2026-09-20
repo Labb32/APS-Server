@@ -46,7 +46,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     vault = VaultRepository(settings.vault_path, push_after_commit=settings.vault_push_after_commit)
     ideas = IdeaService(vault, settings.sync_before_job)
     extensions = ExtensionRegistry(settings.extensions_path)
-    agent = build_agent_executor(settings, vault, extensions) if settings.ai_enabled else None
+    ai_configured, _ = provider_status(settings)
+    agent = build_agent_executor(settings, vault, extensions) if settings.ai_enabled and ai_configured else None
     operations = build_operation_registry(settings, vault, content_store, extensions, agent)
     runner = JobRunner(settings, store, content_store, vault, operations)
     scheduler = Scheduler(settings, store, runner, extensions, operations)
@@ -169,41 +170,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/health/ready")
     def ready(_: str = Depends(authenticate)) -> dict[str, object]:
-        briefing_installed = extensions.is_installed("briefing")
-        ai_ready, ai_status = provider_status(settings)
-        # ExtensionRegistry validates every active manifest and its declared
-        # entrypoint/task resources while the application is assembled.
-        missing_brief_files: list[str] = []
-        briefing_ready = True
-        provider_ready = ai_ready
-        if not settings.configured or not provider_ready or not briefing_ready:
+        if not settings.configured:
             raise ContentAPIError(
                 status.HTTP_503_SERVICE_UNAVAILABLE,
                 "DEPENDENCY_NOT_READY",
-                "필수 의존성이 준비되지 않았습니다.",
-                [
-                    {
-                    "configured": settings.configured,
-                    "ai": ai_status,
-                    "brief_extension": briefing_ready,
-                    "briefing_installed": briefing_installed,
-                    "missing_brief_files": missing_brief_files,
-                    }
-                ],
+                "Core 의존성이 준비되지 않았습니다.",
+                [{"configured": False}],
             )
         return {"status": "ready"}
 
     @app.get("/v1/operations")
     def list_operations(role: str = Depends(authenticate)) -> dict[str, list[dict[str, object]]]:
+        def describe(spec):
+            availability = operations.availability(spec)
+            result: dict[str, object] = {
+                "name": spec.name.value,
+                "write_mode": spec.write_mode,
+                "enabled": availability.enabled,
+            }
+            if availability.reason is not None:
+                result["disabled_reason"] = availability.reason
+            return result
+
         return {
-            "operations": [
-                {
-                    "name": spec.name.value,
-                    "write_mode": spec.write_mode,
-                    "enabled": True,
-                }
-                for spec in operations.for_role(role)
-            ]
+            "operations": [describe(spec) for spec in operations.for_role(role)]
         }
 
     @app.get("/v1/extensions", response_model=ExtensionListResponse)
@@ -232,6 +222,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ) from error
         if role not in operation.roles:
             raise ContentAPIError(status.HTTP_403_FORBIDDEN, "OPERATION_FORBIDDEN", "Operation is not allowed for this role")
+        availability = operations.availability(operation)
+        if not availability.enabled:
+            raise ContentAPIError(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                availability.reason or "OPERATION_NOT_AVAILABLE",
+                "AI operation is unavailable.",
+            )
         if idempotency_key:
             existing = store.find_by_idempotency(role, idempotency_key)
             if existing:

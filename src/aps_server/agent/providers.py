@@ -7,11 +7,14 @@ import urllib.error
 import urllib.request
 from typing import Any, Protocol
 
+from pydantic import AnyHttpUrl, TypeAdapter, ValidationError
+
 from ..config import Settings
 from .contracts import ModelRequest
 
 
 MAX_PROVIDER_RESPONSE_BYTES = 2 * 1024 * 1024
+HTTP_URL = TypeAdapter(AnyHttpUrl)
 
 
 class ModelProviderError(RuntimeError):
@@ -29,6 +32,13 @@ class ModelProvider(Protocol):
 def provider_status(settings: Settings) -> tuple[bool, dict[str, Any]]:
     provider = settings.ai_provider
     configured = True
+    endpoint_configured = False
+    if settings.ai_base_url is not None:
+        try:
+            endpoint = HTTP_URL.validate_python(settings.ai_base_url)
+            endpoint_configured = not any((endpoint.username, endpoint.password, endpoint.query, endpoint.fragment))
+        except ValidationError:
+            endpoint_configured = False
     if provider == "openai":
         configured = bool(
             settings.ai_api_key
@@ -36,14 +46,14 @@ def provider_status(settings: Settings) -> tuple[bool, dict[str, Any]]:
             and settings.ai_model.strip()
         )
     elif provider == "openai-compatible":
-        configured = bool(settings.ai_base_url and settings.ai_model.strip())
+        configured = endpoint_configured and bool(settings.ai_model.strip())
     elif provider == "agent-http":
-        configured = settings.ai_base_url is not None
+        configured = endpoint_configured
     return configured, {
         "provider": provider,
         "configured": configured,
         "model": settings.ai_model or None,
-        "endpoint_configured": provider == "openai" or settings.ai_base_url is not None,
+        "endpoint_configured": provider == "openai" or endpoint_configured,
     }
 
 

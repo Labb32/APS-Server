@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .agent import AgentExecutionContext, AgentExecutionError, AgentExecutor
+from .agent.providers import provider_status
 from .config import Settings
 from .content_models import IdeaCurationPlan, IdeasData
 from .content_store import ContentStore
@@ -49,8 +50,6 @@ class OperationHandlers:
         self.extension_host = ExtensionHost(settings, extensions, vault)
 
     def extension_operation(self, request: CreateJobRequest) -> OperationResult:
-        if self.agent is None and request.operation in {OperationName.BRIEFING_DAILY, OperationName.BRIEFING_PROJECT}:
-            raise OperationError("AI is disabled; use Core document content instead", "AI_DISABLED")
         try:
             return OperationResult(output=self.extension_host.execute(request))
         except ExtensionHostError as error:
@@ -147,7 +146,8 @@ def build_operation_registry(
     agent: AgentExecutor | None,
 ) -> OperationRegistry:
     handlers = OperationHandlers(settings, vault, extensions, agent)
-    registry = OperationRegistry()
+    ai_configured, _ = provider_status(settings)
+    registry = OperationRegistry(ai_enabled=settings.ai_enabled, ai_configured=ai_configured and agent is not None)
     registry.register(OperationSpec(
         name=OperationName.VAULT_CONTENT_REFRESH,
         owner="core",
@@ -187,6 +187,7 @@ def build_operation_registry(
             request_model=IdeasCurateJobRequest,
             handler=handlers.ideas_curate,
             publisher=content_store.prepare_ideas,
+            requires_ai=True,
         )
     )
 
@@ -199,6 +200,7 @@ def build_operation_registry(
             request_model=BriefingDailyJobRequest,
             handler=handlers.extension_operation,
             publisher=content_store.prepare_daily,
+            requires_ai=True,
         ),
         OperationName.BRIEFING_PROJECT: OperationSpec(
             name=OperationName.BRIEFING_PROJECT,
@@ -208,6 +210,7 @@ def build_operation_registry(
             request_model=BriefingProjectJobRequest,
             handler=handlers.extension_operation,
             publisher=content_store.prepare_project,
+            requires_ai=True,
         ),
         OperationName.SERVICE_MAINTENANCE_DUE: OperationSpec(
             name=OperationName.SERVICE_MAINTENANCE_DUE,

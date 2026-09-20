@@ -19,6 +19,10 @@ PROJECT_CONTEXTS_PATH = Path("05_ProjectContexts")
 AGENT_COMMAND = (sys.executable, "-m", "aps_server.ai_bridge", "--task", "briefing.project-analyze")
 
 
+class BriefingProviderError(RuntimeError):
+    """The fixed Agent bridge could not produce a briefing."""
+
+
 @dataclass
 class Note:
     path: Path
@@ -156,14 +160,11 @@ def run_project_briefings(
                 check=False,
             )
         except subprocess.TimeoutExpired:
-            return abnormal(note, f"AI provider 실행 시간이 {timeout_seconds}초를 초과했습니다.")
+            raise BriefingProviderError("AI provider timed out") from None
         except OSError as error:
-            return abnormal(note, f"AI gateway bridge를 시작할 수 없습니다: {type(error).__name__}")
+            raise BriefingProviderError("AI provider bridge could not start") from error
         if completed.returncode != 0:
-            stderr = completed.stderr.decode("utf-8", errors="replace").strip()
-            stdout = completed.stdout.decode("utf-8", errors="replace").strip()
-            detail = stderr or stdout or "출력 없음"
-            return abnormal(note, f"AI provider 실행 실패(exit {completed.returncode}): {detail}")
+            raise BriefingProviderError("AI provider execution failed")
         return parse_agent_response(note, completed.stdout.decode("utf-8", errors="replace").strip())
 
     with ThreadPoolExecutor(max_workers=max(1, min(parallel_projects, 8))) as executor:

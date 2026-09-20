@@ -96,18 +96,19 @@ class Scheduler:
 
     def status(self) -> SchedulerStatus:
         with self._lock:
-            views = [
-                ScheduleView(
+            views: list[ScheduleView] = []
+            for item in self.config.schedules:
+                availability = self.operations.availability(self.operations.get(item.request.operation))
+                views.append(ScheduleView(
                     schedule_id=item.schedule_id,
                     source=self.schedule_sources[item.schedule_id],
                     cron=item.cron,
                     timezone=item.timezone or self.settings.scheduler_timezone,
                     enabled=item.enabled,
+                    disabled_reason=availability.reason,
                     request=item.request.model_dump(mode="json"),
                     runtime=self.state.schedules.get(item.schedule_id, ScheduleRuntime()),
-                )
-                for item in self.config.schedules
-            ]
+                ))
             return SchedulerStatus(
                 enabled=self.settings.scheduler_enabled,
                 running=self._thread is not None and self._thread.is_alive(),
@@ -164,6 +165,9 @@ class Scheduler:
         return latest
 
     def _enqueue(self, definition: ScheduleDefinition, runtime: ScheduleRuntime, scheduled_for: datetime) -> None:
+        availability = self.operations.availability(self.operations.get(definition.request.operation))
+        if not availability.enabled:
+            return
         key = f"schedule:{definition.schedule_id}:{scheduled_for.isoformat()}"
         existing = self.store.find_by_idempotency("scheduler", key)
         if existing is not None:
@@ -267,14 +271,6 @@ class Scheduler:
                 definition = definition.model_copy(update=changes)
             effective.append(definition)
 
-        if not self.settings.ai_enabled:
-            ai_operations = {"ideas.curate", "briefing.daily", "briefing.project"}
-            effective = [
-                item.model_copy(update={"enabled": False})
-                if item.request.operation in ai_operations else item
-                for item in effective
-            ]
-
         config = ScheduleConfig(version=1, schedules=effective)
         for definition in config.schedules:
             try:
@@ -283,6 +279,15 @@ class Scheduler:
                 raise ValueError(f"scheduled operation is not available: {definition.request.operation}") from error
             if "scheduler" not in operation.roles:
                 raise ValueError(f"operation is not allowed for scheduler: {definition.request.operation}")
+        config = ScheduleConfig(
+            version=1,
+            schedules=[
+                definition.model_copy(update={"enabled": False})
+                if not self.operations.availability(self.operations.get(definition.request.operation)).enabled
+                else definition
+                for definition in config.schedules
+            ],
+        )
         self.schedule_sources = sources
         return config
 
