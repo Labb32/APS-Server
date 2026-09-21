@@ -7,7 +7,7 @@ from typing import Callable, Literal
 from fastapi import APIRouter, Depends, Path as APIPath, Query, status
 from fastapi.responses import HTMLResponse
 
-from .api_support import ContentAPIError, content_format, html_content, load_content, update_data_checksum
+from .api_support import HTML_RESPONSE, ContentAPIError, content_format, html_content, load_content, update_data_checksum
 from .content_models import (
     ContentStatusResponse,
     DailyBriefingResponse,
@@ -30,6 +30,14 @@ def build_content_router(
     """Build content routes with application-owned authentication dependencies."""
 
     router = APIRouter()
+
+    @router.get("/v1/content/vault", response_model=VaultDocumentsResponse, responses=HTML_RESPONSE)
+    def get_vault_documents(
+        _: str = Depends(content_reader),
+        format: Literal["json", "html"] = Depends(content_format),
+    ) -> VaultDocumentsResponse | HTMLResponse:
+        response = load_content(content_store.vault_documents)
+        return html_content(html_renderer.vault_documents(response), response.sha256) if format == "html" else response
 
     def document_response(collection: Literal["projects", "services"], identifier: str | None = None, status_filter: str | None = None):
         source: VaultDocumentsResponse = load_content(content_store.vault_documents)
@@ -54,7 +62,7 @@ def build_content_router(
             })
         return update_data_checksum(response)
 
-    @router.get("/v1/projects", response_model=VaultDocumentListResponse)
+    @router.get("/v1/projects", response_model=VaultDocumentListResponse, responses=HTML_RESPONSE)
     def list_projects(
         status_filter: str | None = Query(default=None, alias="status", max_length=80),
         _: str = Depends(content_reader),
@@ -63,7 +71,7 @@ def build_content_router(
         response = document_response("projects", status_filter=status_filter)
         return html_content(html_renderer.vault_document_list(response, "projects"), response.sha256) if format == "html" else response
 
-    @router.get("/v1/projects/{project_id}", response_model=VaultDocumentDetailResponse)
+    @router.get("/v1/projects/{project_id}", response_model=VaultDocumentDetailResponse, responses=HTML_RESPONSE)
     def get_project(
         project_id: str = APIPath(pattern=r"^[a-z0-9][a-z0-9-]{0,63}$"),
         _: str = Depends(content_reader),
@@ -72,7 +80,7 @@ def build_content_router(
         response = document_response("projects", identifier=project_id)
         return html_content(html_renderer.vault_document_detail(response, "projects"), response.sha256) if format == "html" else response
 
-    @router.get("/v1/services", response_model=VaultDocumentListResponse)
+    @router.get("/v1/services", response_model=VaultDocumentListResponse, responses=HTML_RESPONSE)
     def list_services(
         status_filter: str | None = Query(default=None, alias="status", max_length=80),
         _: str = Depends(content_reader),
@@ -81,7 +89,7 @@ def build_content_router(
         response = document_response("services", status_filter=status_filter)
         return html_content(html_renderer.vault_document_list(response, "services"), response.sha256) if format == "html" else response
 
-    @router.get("/v1/services/{service_id}", response_model=VaultDocumentDetailResponse)
+    @router.get("/v1/services/{service_id}", response_model=VaultDocumentDetailResponse, responses=HTML_RESPONSE)
     def get_service(
         service_id: str = APIPath(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$"),
         _: str = Depends(content_reader),
@@ -90,7 +98,7 @@ def build_content_router(
         response = document_response("services", identifier=service_id)
         return html_content(html_renderer.vault_document_detail(response, "services"), response.sha256) if format == "html" else response
 
-    @router.get("/v1/content/briefing/daily", response_model=DailyBriefingResponse)
+    @router.get("/v1/content/briefing/daily", response_model=DailyBriefingResponse, responses=HTML_RESPONSE)
     def get_daily_briefing(
         _: str = Depends(content_reader),
         format: Literal["json", "html"] = Depends(content_format),
@@ -98,7 +106,7 @@ def build_content_router(
         response = load_content(content_store.daily_briefing)
         return html_content(html_renderer.daily_briefing(response), response.sha256) if format == "html" else response
 
-    @router.get("/v1/content/projects", response_model=ProjectCatalogResponse)
+    @router.get("/v1/content/projects", response_model=ProjectCatalogResponse, responses=HTML_RESPONSE)
     def get_project_catalog(
         _: str = Depends(content_reader),
         format: Literal["json", "html"] = Depends(content_format),
@@ -106,7 +114,7 @@ def build_content_router(
         response = load_content(content_store.project_catalog)
         return html_content(html_renderer.project_catalog(response), response.sha256) if format == "html" else response
 
-    @router.get("/v1/content/projects/{project_id}/briefing", response_model=ProjectBriefingResponse)
+    @router.get("/v1/content/projects/{project_id}/briefing", response_model=ProjectBriefingResponse, responses=HTML_RESPONSE)
     def get_project_briefing(
         project_id: str = APIPath(pattern=r"^[a-z0-9][a-z0-9-]{0,63}$"),
         _: str = Depends(content_reader),
@@ -115,7 +123,7 @@ def build_content_router(
         response = load_content(lambda: content_store.project_briefing(project_id))
         return html_content(html_renderer.project_briefing(response), response.sha256) if format == "html" else response
 
-    @router.get("/v1/content/services/maintenance", response_model=ServiceMaintenanceResponse)
+    @router.get("/v1/content/services/maintenance", response_model=ServiceMaintenanceResponse, responses=HTML_RESPONSE)
     def get_service_maintenance(
         scope: Literal["due", "overdue", "upcoming", "all"] = "due",
         _: str = Depends(content_reader),

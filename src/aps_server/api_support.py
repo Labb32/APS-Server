@@ -17,6 +17,7 @@ from .canonical import canonical_checksum
 
 
 ContentResponse = TypeVar("ContentResponse", bound=BaseModel)
+HTML_RESPONSE = {200: {"content": {"text/html": {"schema": {"type": "string"}}}}}
 
 
 class ContentAPIError(Exception):
@@ -29,7 +30,7 @@ class ContentAPIError(Exception):
         self.details = details or []
 
 
-def content_format(format: str = Query(default="json")) -> Literal["json", "html"]:
+def content_format(format: str = Query(default="json", json_schema_extra={"enum": ["json", "html"]})) -> Literal["json", "html"]:
     if format not in {"json", "html"}:
         raise ContentAPIError(status.HTTP_400_BAD_REQUEST, "INVALID_FORMAT", "format must be json or html")
     return format

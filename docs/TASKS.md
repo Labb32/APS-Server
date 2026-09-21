@@ -1,15 +1,15 @@
 # APS Server 개선 작업
 
-기준일: 2026-09-20. 목표 베타 범위는 [PROJECT_PLAN](PROJECT_PLAN.md)을 따른다. 아래 상태는 기존 작업 트리와 문서를 읽어 정리한 것이며 실행 검증·배포 완료를 뜻하지 않는다. 구체적인 개선 작업은 Git에서 제외된 로컬 [`tasks/001`~`005`](../tasks/001-none-mode-capabilities.md)에 순서대로 작성했다.
+기준일: 2026-09-21. 목표 베타 범위는 [PROJECT_PLAN](PROJECT_PLAN.md)을 따른다. 아래 상태는 현재 구현 기준이며 배포 완료를 뜻하지 않는다. 구체적인 개선 작업은 Git에서 제외된 로컬 [`tasks/001`~`005`](../tasks/001-none-mode-capabilities.md)에 순서대로 작성했다.
 
 ## 현재 구현과 차이
 
 | 영역 | 확인한 코드 | 현재 상태와 남은 차이 |
 |---|---|---|
-| AI 선택화 | `config.py`, `main.py`, `agent/providers.py`, `bootstrap.py` | `none` 기본값, Core readiness와 선택 AI 가용성 분리 완료. 변경은 아직 미커밋 |
+| AI 선택화 | `config.py`, `main.py`, `agent/providers.py`, `bootstrap.py` | `none` 기본값, Core readiness와 선택 AI 가용성 분리 완료 |
 | 작업 차단 | `operations.py`, `scheduler.py` | operation metadata 기반 AI 가용성, Job 즉시 거부, schedule 비활성 이유 적용 완료 |
-| 비AI 문서 | `vault_catalog.py`, `content_store.py`, `models.py` | `vault.content.refresh`와 Project·Service materializer 추가 중. 공개 목록·상세 및 기존 briefing 계약과 통합 필요 |
-| Inbox·Idea | `idea_api.py`, `idea_service.py` | Inbox 축적·overlay 조회, AI curate 및 merge/Set 요청 존재. none 모드 정책과 초기 조회 보완 필요 |
+| 비AI 문서 | `vault_catalog.py`, `content_store.py`, `models.py` | `vault.content.refresh`와 Project·Service 목록·상세 제공. briefing 결과와 분리 완료 |
+| Inbox·Idea | `idea_api.py`, `idea_service.py` | 첫 catalog 전 Inbox 조회, JSON/text 접수와 pending merge/Set, tracked PATCH 차단 완료 |
 | 검색 | `idea_search.py`, `pyproject.toml` | Idea 전용 lexical/문자열 유사도. 소형 임베딩·공통 문서 검색 없음 |
 | 내부 실행 | `runner.py`, `scheduler.py` | in-process queue·cron·Job 상태와 AI 가용성 정책 적용. 외부 큐는 별도 작업 |
 | 외부 AI 실행 | `agent/providers.py` | Agent HTTP provider 있음. 비동기 외부 큐의 접수·상태·결과 계약은 별도 구현 필요 |
@@ -43,7 +43,8 @@
   - tracked Idea 직접 수정 API와 Scheduler commit 지침의 차이를 문서화하고 호환 전환안을 정한다.
   - 완료 조건: 접수·재시작 후 조회가 가능하며 AI 없는 상태에서 정리 commit이나 Inbox 원본 삭제가 발생하지 않는다.
 
-- [ ] **CORE-04 — 배포·API·문서 정합성**
+- [x] **CORE-04 — 배포·API·문서 정합성**
+  - 확인: 임시 Vault에서 Core-only 일정·Job·게시 URL·권한을 직접 호출했다. 이전 `idea-index` 설정과 AI override도 확인했고 정적 OpenAPI는 런타임 `/openapi.json`과 일치한다. 코드 테스트는 실행하지 않았다.
   - 대상: `README.md`, `.env.example`, `deploy/config/aps.env.example`, `deploy/config/schedules.json`, `compose.yaml`, `docs/AI_PROVIDERS.md`, `docs/CONTAINER_DEPLOYMENT.md`, `docs/CONTENT_API.md`, `docs/API_REFERENCE.md`, `specs/`.
   - AI 필수 안내를 선택 설정으로 전환하고 Core만 실행하는 구성을 기본 예시로 둔다.
   - Core catalog 갱신과 AI schedule을 분리하며 기존 설정·override에도 capability 정책을 적용한다.

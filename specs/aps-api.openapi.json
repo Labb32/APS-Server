@@ -595,6 +595,10 @@
             "required": false,
             "schema": {
               "type": "string",
+              "enum": [
+                "json",
+                "html"
+              ],
               "default": "json",
               "title": "Format"
             }
@@ -607,6 +611,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DailyBriefingResponse"
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -720,6 +729,10 @@
             "required": false,
             "schema": {
               "type": "string",
+              "enum": [
+                "json",
+                "html"
+              ],
               "default": "json",
               "title": "Format"
             }
@@ -732,6 +745,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProjectCatalogResponse"
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -855,6 +873,10 @@
             "required": false,
             "schema": {
               "type": "string",
+              "enum": [
+                "json",
+                "html"
+              ],
               "default": "json",
               "title": "Format"
             }
@@ -867,6 +889,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProjectBriefingResponse"
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -996,6 +1023,10 @@
             "required": false,
             "schema": {
               "type": "string",
+              "enum": [
+                "json",
+                "html"
+              ],
               "default": "json",
               "title": "Format"
             }
@@ -1008,6 +1039,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ServiceMaintenanceResponse"
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -1157,6 +1193,10 @@
             "required": false,
             "schema": {
               "type": "string",
+              "enum": [
+                "json",
+                "html"
+              ],
               "default": "json",
               "title": "Format"
             }
@@ -1169,6 +1209,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/IdeasResponse"
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -1431,6 +1476,10 @@
             "required": false,
             "schema": {
               "type": "string",
+              "enum": [
+                "json",
+                "html"
+              ],
               "default": "json",
               "title": "Format"
             }
@@ -1443,6 +1492,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/IdeasResponse"
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -2089,6 +2143,10 @@
             "required": false,
             "schema": {
               "type": "string",
+              "enum": [
+                "json",
+                "html"
+              ],
               "default": "json",
               "title": "Format"
             }
@@ -2101,6 +2159,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/IdeaDetailResponse"
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -2482,6 +2545,10 @@
             "required": false,
             "schema": {
               "type": "string",
+              "enum": [
+                "json",
+                "html"
+              ],
               "default": "json",
               "title": "Format"
             }
@@ -2494,6 +2561,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/IdeaSetsResponse"
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -3302,6 +3374,10 @@
             "required": false,
             "schema": {
               "type": "string",
+              "enum": [
+                "json",
+                "html"
+              ],
               "default": "json",
               "title": "Format"
             }
@@ -3314,6 +3390,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/VaultDocumentListResponse"
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -3437,6 +3518,10 @@
             "required": false,
             "schema": {
               "type": "string",
+              "enum": [
+                "json",
+                "html"
+              ],
               "default": "json",
               "title": "Format"
             }
@@ -3449,6 +3534,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/VaultDocumentDetailResponse"
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -3579,6 +3669,10 @@
             "required": false,
             "schema": {
               "type": "string",
+              "enum": [
+                "json",
+                "html"
+              ],
               "default": "json",
               "title": "Format"
             }
@@ -3591,6 +3685,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/VaultDocumentListResponse"
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -3714,6 +3813,10 @@
             "required": false,
             "schema": {
               "type": "string",
+              "enum": [
+                "json",
+                "html"
+              ],
               "default": "json",
               "title": "Format"
             }
@@ -3726,6 +3829,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/VaultDocumentDetailResponse"
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -3849,6 +3957,10 @@
             "required": false,
             "schema": {
               "type": "string",
+              "enum": [
+                "json",
+                "html"
+              ],
               "default": "json",
               "title": "Format"
             }
@@ -3861,6 +3973,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/IdeaSetDetailResponse"
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -4102,6 +4219,140 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 10000
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content/vault": {
+      "get": {
+        "summary": "Get Vault Documents",
+        "operationId": "get_vault_documents_v1_content_vault_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "html"
+              ],
+              "default": "json",
+              "title": "Format"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultDocumentsResponse"
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Operation forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource or materialized content not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Artifact expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Invalid content or internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency not ready",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -6652,6 +6903,87 @@
           "name"
         ],
         "title": "VaultDocumentSummary"
+      },
+      "VaultDocumentsData": {
+        "properties": {
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/VaultDocument"
+            },
+            "type": "array",
+            "title": "Projects"
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/VaultDocument"
+            },
+            "type": "array",
+            "title": "Services"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "VaultDocumentsData"
+      },
+      "VaultDocumentsResponse": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "content_type": {
+            "type": "string",
+            "const": "vault_documents",
+            "title": "Content Type",
+            "default": "vault_documents"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "vault_commit": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{7,64}$",
+            "title": "Vault Commit"
+          },
+          "generator_version": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Generator Version"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale",
+            "default": false
+          },
+          "partial_failure": {
+            "type": "boolean",
+            "title": "Partial Failure",
+            "default": false
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256"
+          },
+          "data": {
+            "$ref": "#/components/schemas/VaultDocumentsData"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "generated_at",
+          "vault_commit",
+          "generator_version",
+          "sha256",
+          "data"
+        ],
+        "title": "VaultDocumentsResponse"
       }
     },
     "securitySchemes": {

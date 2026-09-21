@@ -21,6 +21,8 @@ docker compose ps
 
 기본 주소는 `127.0.0.1:8080`이다.
 
+아래 curl 예시는 token을 현재 shell의 `APS_OPERATOR_TOKEN`, `APS_VIEWER_TOKEN` 변수에도 넣은 상태를 가정한다. Compose가 읽는 `.env` 값은 host shell 변수로 자동 export되지 않는다.
+
 ```bash
 curl http://127.0.0.1:8080/health/live
 curl http://127.0.0.1:8080/health/ready \
@@ -42,11 +44,25 @@ curl -X POST http://127.0.0.1:8080/v1/ideas \
   -H "Content-Type: application/json" \
   -d '{"title":"Vault 알림","keywords":["vault"],"summary":"Vault 변경을 확인하는 Idea"}'
 
+curl -X POST http://127.0.0.1:8080/v1/ideas/text \
+  -H "Authorization: Bearer $APS_OPERATOR_TOKEN" \
+  -H "Content-Type: text/plain; charset=utf-8" \
+  --data-binary '새 Idea 설명'
+
+curl -X POST http://127.0.0.1:8080/v1/jobs \
+  -H "Authorization: Bearer $APS_OPERATOR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"operation":"vault.content.refresh","input":{},"context":{}}'
+
+# 위 Job이 succeeded가 된 뒤 조회
+curl http://127.0.0.1:8080/v1/projects \
+  -H "Authorization: Bearer $APS_VIEWER_TOKEN"
+
 curl http://127.0.0.1:8080/v1/operations \
   -H "Authorization: Bearer $APS_OPERATOR_TOKEN"
 ```
 
-Idea 접수는 서버가 관리하는 Git-ignored `00_Inbox`에만 기록한다. 요청자가 Vault 경로·shell·AI prompt를 지정할 수 없다. Content GET은 검증해 저장한 결과만 반환하며 AI나 동기화 Job을 시작하지 않는다. 생성 전 결과는 `CONTENT_NOT_GENERATED`일 수 있다. 현재의 endpoint·schema·오류는 [API Reference](docs/API_REFERENCE.md)와 [OpenAPI](specs/aps-api.openapi.json)에 있다.
+Idea 접수는 서버가 관리하는 Git-ignored `00_Inbox`에만 기록한다. 요청자가 Vault 경로·shell·AI prompt를 지정할 수 없다. Project·Service 조회는 첫 `vault.content.refresh` 완료 전 `CONTENT_NOT_GENERATED`를 반환한다. Idea 조회는 첫 게시 전에도 빈 catalog와 Inbox pending 항목을 제공한다. Content GET은 AI나 동기화 Job을 시작하지 않는다. 현재의 endpoint·schema·오류는 [API Reference](docs/API_REFERENCE.md)와 [OpenAPI](specs/aps-api.openapi.json)에 있다.
 
 ## Job과 확장
 

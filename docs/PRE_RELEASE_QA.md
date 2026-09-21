@@ -48,7 +48,7 @@ curl -i http://127.0.0.1:8080/v1/scheduler \
   -H "Authorization: Bearer $APS_OPERATOR_TOKEN"
 ```
 
-확장 없는 상태에서 `vault.audit`, `ideas.index.refresh`, `ideas.curate`만 Core operation으로 노출되는지 확인한다. Scheduler에는 `idea-index`, `idea-curate`, `vault-audit`가 보여야 하며 `briefing.*` operation과 schedule은 없어야 한다.
+확장 없는 상태에서 `vault.content.refresh`, `vault.audit`, `ideas.index.refresh`, `ideas.curate`가 Core operation으로 노출되는지 확인한다. 새 기본 Scheduler에는 `vault-content`, `idea-curate`, `vault-audit`가 보여야 한다. AI가 `none`이면 `idea-curate`는 `AI_DISABLED`로 비활성화된다. 기존 영속 설정의 `idea-index`는 유지될 수 있다. `briefing.*` operation과 schedule은 없어야 한다.
 
 다음 거부 흐름도 확인한다.
 
@@ -60,7 +60,7 @@ curl -i http://127.0.0.1:8080/v1/scheduler \
 
 ## 4. Job과 materialized content
 
-고유한 `Idempotency-Key`로 `ideas.index.refresh`와 `vault.audit`를 실행한다. `202` 응답의 Job ID를 조회해 `queued → running → succeeded|failed` 전이를 확인하고, 같은 key와 같은 payload의 재요청 및 다른 payload 충돌을 각각 확인한다.
+고유한 `Idempotency-Key`로 `vault.content.refresh`와 `vault.audit`를 실행한다. `202` 응답의 Job ID를 조회해 `queued → running → succeeded|failed` 전이를 확인하고, 같은 key와 같은 payload의 재요청 및 다른 payload 충돌을 각각 확인한다.
 
 성공한 content는 다음을 확인한다.
 
@@ -78,12 +78,12 @@ QA용 Idea 하나를 `POST /v1/ideas`로 접수한다.
 2. 생성 파일이 서버가 만든 ID를 사용하고 `00_Inbox` 밖에 쓰이지 않았는지 확인한다.
 3. pending Idea가 목록·상세·검색에 즉시 나타나는지 확인한다.
 4. `PATCH /v1/ideas/{idea_id}`가 Inbox만 갱신하는지 확인한다.
-5. `ideas.curate` 실행 전 Git tracked 변경이 없는지 확인한다.
-6. 실행 후 schema를 통과한 문서만 `01_Ideas`와 필요 시 `01_Idea_Sets`에 한 batch commit으로 기록되는지 확인한다.
+5. `none` 모드에서는 `ideas.curate`가 `AI_DISABLED`이고 tracked 변경이나 Inbox 삭제가 없는지 확인한다.
+6. AI provider를 별도로 설정한 disposable Vault에서만 `ideas.curate`를 실행한다. schema를 통과한 문서만 `01_Ideas`와 필요 시 `01_Idea_Sets`에 한 batch commit으로 기록되는지 확인한다.
 7. commit 성공 뒤에만 처리된 Inbox 원본이 제거되는지 확인한다.
 8. push 설정이 꺼져 있으면 자동 push가 없고, 켜져 있으면 현재 tracking upstream으로만 fast-forward push됐는지 확인한다. 두 경우 모두 branch 전환, merge, reset이 없었는지 `git status`, `git log`, `git reflog`로 확인한다.
 
-tracked Idea 즉시 수정은 disposable remote에서만 검증하고 대상 Markdown 외의 파일이 commit되지 않는지 확인한다.
+tracked Idea `PATCH`는 `409 IDEA_TRACKED_UPDATE_DISABLED`로 거부되고 Git revision이 유지되는지 확인한다. `text/plain` 접수는 고정 `/v1/ideas/text`에서만 허용되며 잘못된 인코딩·길이·media type과 Idempotency-Key 충돌을 확인한다.
 
 ## 6. Git 안전 경계
 

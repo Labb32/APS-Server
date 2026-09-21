@@ -31,14 +31,14 @@ CORE_DEFAULT_SCHEDULES = ScheduleConfig.model_validate(
         "version": 1,
         "schedules": [
             {
+                "schedule_id": "vault-content",
+                "cron": "0 */6 * * *",
+                "request": {"operation": "vault.content.refresh", "input": {}, "context": {}},
+            },
+            {
                 "schedule_id": "idea-curate",
                 "cron": "15 */6 * * *",
                 "request": {"operation": "ideas.curate", "input": {}, "context": {}},
-            },
-            {
-                "schedule_id": "idea-index",
-                "cron": "0 */6 * * *",
-                "request": {"operation": "ideas.index.refresh", "input": {}, "context": {}},
             },
             {
                 "schedule_id": "vault-audit",

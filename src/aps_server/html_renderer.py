@@ -20,6 +20,7 @@ from .content_models import (
     TaskItem,
     VaultDocumentDetailResponse,
     VaultDocumentListResponse,
+    VaultDocumentsResponse,
 )
 
 
@@ -67,6 +68,19 @@ class HTMLRenderer:
             '<div class="table-scroll"><table><thead><tr><th>ID</th><th>Name</th><th>Status</th><th>Summary</th></tr></thead>'
             f'<tbody>{table_rows}</tbody></table></div>'
         )
+        return self._render("vault_document.html", values, {"APS_CONTENT_CSS", "STALE_BADGE_HTML", "BODY_HTML"})
+
+    def vault_documents(self, response: VaultDocumentsResponse) -> str:
+        values = self._base(response, "APS Vault Documents")
+        sections = []
+        for collection, documents in (("projects", response.data.projects), ("services", response.data.services)):
+            rows = "".join(
+                f'<li><a href="/v1/{collection}/{quote(item.document_id, safe="")}?format=html">{self._text(item.name)}</a>'
+                f' · {self._text(item.status or "-")}</li>'
+                for item in documents
+            )
+            sections.append(f'<section><h2>{collection.title()} ({len(documents)})</h2><ul>{rows}</ul></section>')
+        values["BODY_HTML"] = "".join(sections)
         return self._render("vault_document.html", values, {"APS_CONTENT_CSS", "STALE_BADGE_HTML", "BODY_HTML"})
 
     def vault_document_detail(self, response: VaultDocumentDetailResponse, collection: str) -> str:

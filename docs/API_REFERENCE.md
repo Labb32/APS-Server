@@ -1,21 +1,6 @@
 # APS Server API Reference
 
-## Core Vault document reads (CORE-02)
-
-`vault.content.refresh` is available to operator and scheduler tokens without AI. It publishes Project, Service, Idea and Idea Set catalogs from one clean Vault revision. Before the first successful refresh, Project and Service reads return `404 CONTENT_NOT_GENERATED`; Idea and Idea Set reads use an empty catalog so pending Inbox entries remain visible. An empty collection returns `200` with an empty list. A malformed document fails refresh and keeps the last published catalog.
-
-| Resource | List | Detail | JSON data |
-|---|---|---|---|
-| Projects | `GET /v1/projects` | `GET /v1/projects/{project_id}` | `documents[]` summaries; `document` with Markdown `content` |
-| Services | `GET /v1/services` | `GET /v1/services/{service_id}` | Same shape |
-| Ideas | `GET /v1/ideas` | `GET /v1/ideas/{idea_id}` | Existing response with Markdown `content` |
-| Idea Sets | `GET /v1/idea-sets` | `GET /v1/idea-sets/{idea_set_id}` | Full list; detail uses the existing `idea_set` response shape |
-
-Reads require an operator or viewer token. List routes accept an optional exact `status` filter and default to every status. `?format=html` uses a fixed server template and escapes Markdown. Project and Service details include `vault_commit`, `generated_at`, normalized metadata and the allowed Markdown body. Unknown IDs return `PROJECT_NOT_FOUND`, `SERVICE_NOT_FOUND`, `IDEA_NOT_FOUND` or `IDEA_SET_NOT_FOUND`.
-
-Projects require a stable `project_id` (legacy `briefing_id` is accepted); Services require `service_id`. IDs remain stable when filenames change. Missing, duplicate or malformed IDs and frontmatter fail refresh. The separate `/v1/content/projects`, `/v1/content/projects/{project_id}/briefing` and `/v1/content/services/maintenance` routes continue to serve generated briefing or maintenance results.
-
-문서 버전 `0.1.0` · 기준일 `2026-09-20`
+문서 버전 `0.1.0` · 기준일 `2026-09-21`
 
 이 문서는 현재 FastAPI 애플리케이션이 제공하는 실제 client 계약이다. 전체 machine-readable schema는 [aps-api.openapi.json](../specs/aps-api.openapi.json), 향후 endpoint와 설계 배경은 [CONTENT_API.md](CONTENT_API.md), 구성 요소 경계는 [ARCHITECTURE.md](ARCHITECTURE.md)를 참고한다.
 
@@ -55,8 +40,8 @@ APS Server는 IP, Origin 또는 proxy header를 사용자 인증 근거로 사�
 | Header | 방향 | 필수 | 설명 |
 |---|---|---:|---|
 | `Authorization` | 요청 | 대부분 필수 | Bearer token |
-| `Content-Type` | 요청 | JSON body 사용 시 | `application/json` |
-| `Idempotency-Key` | Job 생성 요청 | 선택 | 8~128자 |
+| `Content-Type` | 요청 | body 사용 시 | JSON은 `application/json`, text Inbox는 `text/plain` |
+| `Idempotency-Key` | Job·Idea 접수 요청 | 선택 | Job은 8~128자, Idea는 영숫자·`._~-` 8~128자 |
 | `X-Request-ID` | 응답 | 항상 | 서버가 생성한 요청 추적 ID |
 | `ETag` | HTML Content 응답 | HTML만 | canonical data checksum |
 
@@ -94,13 +79,18 @@ APS Server는 IP, Origin 또는 proxy header를 사용자 인증 근거로 사�
 | `404` | `ROUTE_NOT_FOUND` | 등록되지 않은 API 경로 |
 | `404` | `CONTENT_NOT_GENERATED` | 정상 materialized 결과가 아직 없음 |
 | `404` | `IDEA_NOT_FOUND` | Idea ID가 최신 결과에 없음 |
-| `404` | `IDEA_SET_NOT_FOUND` | 추천 가능한 Idea Set 없음 |
+| `404` | `IDEA_SET_NOT_FOUND` | Idea Set ID 또는 추천 결과 없음 |
+| `404` | `PROJECT_NOT_FOUND`, `SERVICE_NOT_FOUND` | 조회 ID가 게시된 catalog에 없음 |
 | `404` | `JOB_NOT_FOUND` | Job ID 없음 |
 | `404` | `ARTIFACT_NOT_FOUND` | Artifact ID 없음 |
 | `409` | `JOB_NOT_CANCELLABLE` | queued가 아닌 Job 취소 요청 |
 | `409` | `IDEMPOTENCY_KEY_REUSED` | 같은 key를 다른 payload에 재사용 |
+| `409` | `IDEA_TRACKED_UPDATE_DISABLED` | tracked Idea 직접 수정 금지 |
 | `410` | `ARTIFACT_EXPIRED` | Artifact가 만료 또는 제거됨 |
+| `413` | `IDEA_CONTENT_TOO_LARGE` | text Inbox 요청이 40,000바이트 초과 |
+| `415` | `UNSUPPORTED_MEDIA_TYPE` | text Inbox 요청의 media type 오류 |
 | `422` | `REQUEST_VALIDATION_FAILED` | body, path 또는 query schema 오류 |
+| `422` | `IDEA_TEXT_INVALID` | text Inbox 본문 인코딩·길이·문자 오류 |
 | `500` | `CONTENT_INVALID` | 저장 JSON의 schema/checksum 오류 |
 | `500` | `INTERNAL_ERROR` | 분류되지 않은 서버 오류 |
 | `503` | `DEPENDENCY_NOT_READY` | Core Vault 또는 인증 설정 미준비 |
@@ -138,7 +128,7 @@ Core의 token과 Vault 준비 상태를 확인한다. AI provider나 선택 확�
 ```json
 {
   "operations": [
-    {"name":"ideas.index.refresh","write_mode":"none","enabled":true}
+    {"name":"vault.content.refresh","write_mode":"none","enabled":true}
   ]
 }
 ```
@@ -187,12 +177,13 @@ Core의 token과 Vault 준비 상태를 확인한다. AI provider나 선택 확�
   "queue": {"queued_and_running": 1, "capacity": 100, "workers": 2},
   "schedules": [
     {
-      "schedule_id": "briefing.daily-refresh",
-      "source": "extension:briefing",
-      "cron": "0 6 * * *",
+      "schedule_id": "vault-content",
+      "source": "core",
+      "cron": "0 */6 * * *",
       "timezone": "Asia/Seoul",
       "enabled": true,
-      "request": {"operation":"briefing.daily","input":{},"context":{}},
+      "disabled_reason": null,
+      "request": {"operation":"vault.content.refresh","input":{},"context":{}},
       "runtime": {
         "last_checked_at": "2026-09-01T00:00:00Z",
         "last_scheduled_for": "2026-08-31T21:00:00Z",
@@ -204,7 +195,7 @@ Core의 token과 Vault 준비 상태를 확인한다. AI provider나 선택 확�
 }
 ```
 
-Core Schedule은 `${APS_DATA_PATH}/schedules.json`, 확장 Schedule은 설치된 manifest에서 읽는다. `${APS_DATA_PATH}/schedule-overrides.json`은 같은 ID의 `cron`, `timezone`, `enabled`만 재정의한다. AI 의존 작업이 비활성이면 해당 schedule의 `enabled`는 `false`, `disabled_reason`은 `AI_DISABLED` 또는 `PROVIDER_NOT_CONFIGURED`다. 가용한 작업은 `disabled_reason:null`이다. 설정 변경은 재시작 후 적용된다.
+Core Schedule은 `APS_SCHEDULES_PATH`(Compose 기본 `/config/schedules.json`, 독립 실행 기본 `${APS_DATA_PATH}/schedules.json`)에서, 확장 Schedule은 설치된 manifest에서 읽는다. `APS_SCHEDULE_OVERRIDES_PATH`는 같은 ID의 `cron`, `timezone`, `enabled`만 재정의한다. 새 기본 일정은 `vault-content`·`idea-curate`·`vault-audit`다. 이전 설정의 `idea-index`는 유지된다. AI 의존 작업이 비활성이면 override가 켜져 있어도 해당 schedule의 `enabled`는 `false`, `disabled_reason`은 `AI_DISABLED` 또는 `PROVIDER_NOT_CONFIGURED`다. 가용한 작업은 `disabled_reason:null`이다. 설정 변경은 재시작 후 적용된다.
 
 실패: `401 AUTHENTICATION_REQUIRED`, `403 OPERATION_FORBIDDEN`.
 
@@ -288,6 +279,17 @@ queued → syncing → running → validating → publishing → succeeded
 - 고정 `01_Ideas`, `01_Idea_Sets`를 검증해 canonical `ideas.json` 게시
 - path, model, executable, keyword와 임의 옵션은 허용하지 않음
 
+#### `vault.content.refresh`
+
+```json
+{"operation":"vault.content.refresh","input":{},"context":{}}
+```
+
+- Role: `scheduler`, `operator`; AI·공식 확장 없이 실행 가능
+- Project·Service 원문 catalog와 Idea·Idea Set catalog를 같은 Vault revision으로 검증·게시
+- 결과의 `content_url`은 `/v1/content/vault`, `published_content`에는 `/v1/content/ideas`도 포함
+- 잘못된 문서가 있으면 Job은 `VAULT_DOCUMENT_INVALID`로 실패하고 이전 정상 게시 결과를 보존
+
 ### `POST /v1/jobs`
 
 선택 헤더:
@@ -337,10 +339,10 @@ Idempotency-Key: device-01-20260901-ideas-refresh
     "content_type":"ideas",
     "published":true,
     "generated_at":"2026-09-01T00:00:03+00:00",
-    "sha256":"64자리 소문자 hex",
+    "sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     "content_url":"/v1/content/ideas",
     "published_content":[
-      {"content_type":"ideas","sha256":"64자리 소문자 hex","content_url":"/v1/content/ideas"}
+      {"content_type":"ideas","sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","content_url":"/v1/content/ideas"}
     ]
   },
   "artifacts":[],
@@ -375,6 +377,7 @@ Idempotency-Key: device-01-20260901-ideas-refresh
 | `PROVIDER_EXECUTION_FAILED` | provider 실행 실패 또는 timeout |
 | `PROVIDER_OUTPUT_INVALID` | provider 출력 JSON 오류 |
 | `IDEA_CATALOG_INVALID` | Idea frontmatter, ID 또는 Set 참조 오류 |
+| `VAULT_DOCUMENT_INVALID` | Project·Service·Idea·Set 문서 검증 오류 |
 | `OUTPUT_SCHEMA_INVALID` | 생성 결과가 canonical schema를 통과하지 못함 |
 | `OPERATION_FAILED` | 등록 operation 처리 실패 |
 | `INTERNAL_JOB_ERROR` | 분류되지 않은 worker 오류 |
@@ -391,6 +394,7 @@ HTTP 실패: `401 AUTHENTICATION_REQUIRED`, `404 JOB_NOT_FOUND`.
 ### `GET /v1/jobs/{job_id}/artifacts/{artifact_id}`
 
 Job에 등록되고 `/data/artifacts/{job_id}` 아래로 검증된 파일만 반환한다.
+현재 일반 Job Artifact 조회 경로만 활성이다. Vault archive 생성·다운로드는 `migration` 확장 계획에 속하며 아직 제공하지 않는다.
 
 실패: `401 AUTHENTICATION_REQUIRED`, `404 JOB_NOT_FOUND`, `404 ARTIFACT_NOT_FOUND`, `403 ARTIFACT_PATH_INVALID`, `410 ARTIFACT_EXPIRED`.
 
@@ -409,7 +413,7 @@ Content GET은 Codex나 provider를 실행하지 않는다. Idea 조회는 마�
   "generator_version":"0.1.0",
   "stale":false,
   "partial_failure":false,
-  "sha256":"64자리 소문자 hex",
+  "sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   "data":{}
 }
 ```
@@ -422,6 +426,7 @@ Content GET은 Codex나 provider를 실행하지 않는다. Idea 조회는 마�
 | `GET` | `/v1/content/projects` | `format` |
 | `GET` | `/v1/content/projects/{project_id}/briefing` | `format` |
 | `GET` | `/v1/content/services/maintenance` | `format`, `scope` |
+| `GET` | `/v1/content/vault` | `format`; Project·Service materialized 원문 catalog |
 | `GET` | `/v1/content/ideas` | `format`, `status`, `idea_set_id` |
 | `GET` | `/v1/content/status` | 없음, JSON 전용 |
 
@@ -431,6 +436,17 @@ Content GET은 Codex나 provider를 실행하지 않는다. Idea 조회는 마�
 - HTML 보안 헤더: private cache, CSP, ETag, `Vary: Authorization`, `nosniff`
 
 공통 실패: `400 INVALID_FORMAT`, `401 AUTHENTICATION_REQUIRED`, `403 OPERATION_FORBIDDEN`, `404 CONTENT_NOT_GENERATED`, `422 REQUEST_VALIDATION_FAILED`, `500 CONTENT_INVALID`.
+
+### Core 문서 조회
+
+| 종류 | 목록 | 상세 | JSON data |
+|---|---|---|---|
+| Project | `GET /v1/projects` | `GET /v1/projects/{project_id}` | 목록 `documents[]` 요약, 상세 `document`와 Markdown `content` |
+| Service | `GET /v1/services` | `GET /v1/services/{service_id}` | 같은 구조 |
+| Idea | `GET /v1/ideas` | `GET /v1/ideas/{idea_id}` | 기존 Idea envelope와 Markdown `content` |
+| Idea Set | `GET /v1/idea-sets` | `GET /v1/idea-sets/{idea_set_id}` | 전체 목록과 상세 `idea_set` |
+
+목록의 `status`는 선택적 정확 일치 필터이며 기본은 전체 상태다. `format=html`은 같은 결과를 고정 template으로 표시하고 Markdown/HTML을 escape한다. Project·Service는 첫 `vault.content.refresh` 전 `404 CONTENT_NOT_GENERATED`, Idea·Set은 빈 catalog와 Inbox pending 항목을 `200`으로 제공한다. Project는 안정된 `project_id`(기존 `briefing_id`도 허용), Service는 `service_id`가 필요하다. 중복·잘못된 ID와 frontmatter는 refresh Job을 실패시킨다. 기존 `/v1/content/projects`와 `/v1/content/services/maintenance`는 briefing·유지보수 결과이므로 일반 원문 조회로 대체하지 않는다.
 
 ## 6. Idea Resource API
 

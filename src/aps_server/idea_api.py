@@ -8,7 +8,7 @@ from typing import Callable, Literal
 from fastapi import APIRouter, Depends, Header, Path as APIPath, Query, Request, status
 from fastapi.responses import HTMLResponse
 
-from .api_support import ContentAPIError, content_format, html_content, load_content, update_data_checksum
+from .api_support import HTML_RESPONSE, ContentAPIError, content_format, html_content, load_content, update_data_checksum
 from .content_models import (
     IdeaCreateRequest,
     IdeaDetailResponse,
@@ -82,7 +82,7 @@ def build_idea_router(
         if role != "operator":
             raise ContentAPIError(status.HTTP_403_FORBIDDEN, "OPERATION_FORBIDDEN", "Idea write is not allowed for this token")
 
-    @router.get("/v1/content/ideas", response_model=IdeasResponse)
+    @router.get("/v1/content/ideas", response_model=IdeasResponse, responses=HTML_RESPONSE)
     def get_ideas(
         idea_status: IdeaStatusFilter = Query(default="all", alias="status"),
         idea_set_id: str | None = Query(default=None, pattern=r"^idea_set_[A-Z0-9]+$"),
@@ -92,7 +92,7 @@ def build_idea_router(
         response = _filter(current_content(), idea_status, idea_set_id)
         return html_content(html_renderer.ideas(response, idea_status), response.sha256) if format == "html" else response
 
-    @router.get("/v1/ideas", response_model=IdeasResponse)
+    @router.get("/v1/ideas", response_model=IdeasResponse, responses=HTML_RESPONSE)
     def list_ideas(
         idea_status: IdeaStatusFilter = Query(default="all", alias="status"),
         idea_set_id: str | None = Query(default=None, pattern=r"^idea_set_[A-Z0-9]+$"),
@@ -138,7 +138,7 @@ def build_idea_router(
             results=similar_ideas(content.data.ideas, source, limit),
         )
 
-    @router.get("/v1/ideas/{idea_id}", response_model=IdeaDetailResponse)
+    @router.get("/v1/ideas/{idea_id}", response_model=IdeaDetailResponse, responses=HTML_RESPONSE)
     def get_idea(
         idea_id: str = APIPath(pattern=r"^idea_[A-Z0-9]+$"),
         _: str = Depends(content_reader),
@@ -151,7 +151,7 @@ def build_idea_router(
         response = IdeaDetailResponse(vault_commit=content.vault_commit, generated_at=content.generated_at, idea=idea)
         return html_content(html_renderer.idea_detail(content, idea), content.sha256) if format == "html" else response
 
-    @router.get("/v1/idea-sets", response_model=IdeaSetsResponse)
+    @router.get("/v1/idea-sets", response_model=IdeaSetsResponse, responses=HTML_RESPONSE)
     def list_idea_sets(
         status_filter: Literal["suggested", "approved", "rejected", "archived"] | None = Query(default=None, alias="status"),
         _: str = Depends(content_reader),
@@ -179,7 +179,7 @@ def build_idea_router(
             idea_set=candidates[0],
         )
 
-    @router.get("/v1/idea-sets/{idea_set_id}", response_model=IdeaSetDetailResponse)
+    @router.get("/v1/idea-sets/{idea_set_id}", response_model=IdeaSetDetailResponse, responses=HTML_RESPONSE)
     def get_idea_set(
         idea_set_id: str = APIPath(pattern=r"^idea_set_[A-Z0-9]+$"),
         _: str = Depends(content_reader),

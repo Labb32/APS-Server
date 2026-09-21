@@ -8,7 +8,7 @@
 - 요청자는 Vault 경로·remote·branch, shell·실행 파일, AI provider·model·prompt를 지정하지 못한다. 고정 operation과 검증된 ID·schema만 받는다.
 - Content GET은 저장된 결과만 읽으며 Vault 동기화, AI 호출 또는 생성 Job을 시작하지 않는다.
 - JSON은 정규화 metadata, 논리 ID, 기준 Vault revision, 필요한 경우 검증된 Markdown 본문을 포함한다. HTML은 **같은 JSON**을 서버의 고정 template으로 표시하며 원시 HTML·스크립트를 안전하게 처리한다.
-- 생성 실패 시 이전 정상 결과를 보존하고 `stale`·생성 시각·기준 revision을 표시한다. 결과 checksum과 부분 실패 여부는 응답 계약에 포함한다.
+- 생성 실패 시 이전 정상 결과를 보존하고 실패 원인은 Job에 기록한다. 기존 결과의 `stale` 값은 마지막 성공 게시 때의 값이며 실패만으로 자동 변경되지 않는다. 생성 시각·기준 revision·checksum과 부분 실패 여부는 응답 계약에 포함한다.
 
 ## 목표 기능과 상태
 

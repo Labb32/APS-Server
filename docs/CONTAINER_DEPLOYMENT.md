@@ -121,7 +121,7 @@ APS_INITIAL_EXTENSIONS=briefing
 
 ## 4. AI provider 선택
 
-APS Server는 AI Agent 의존 서비스이므로 최초 배포에서 Core AgentExecutor가 사용할 provider를 반드시 하나 선택한다. 기본 provider는 없으며 `.env` 또는 mount한 `APS_CONFIG_FILE`에서 설정한다.
+기본값 `APS_AI_PROVIDER=none`으로 Core API, 문서 조회, Inbox 접수와 Vault catalog 갱신을 사용할 수 있다. AI 사서와 AI 의존 확장을 사용할 때만 `.env` 또는 mount한 `APS_CONFIG_FILE`에서 provider를 선택한다.
 
 OpenAI Responses API를 선택할 때:
 
@@ -186,6 +186,8 @@ APS_SCHEDULE_OVERRIDES_PATH=/config/schedule-overrides.json
 ```
 
 파일에는 사전에 등록된 고정 Job request만 들어갈 수 있다. shell command, executable, AI argument와 Vault path는 schema 검증에서 거부된다. 파일을 변경한 후에는 컨테이너를 재시작한다. mounted 파일은 APS Server가 덮어쓰지 않으며 실행 상태만 `/data/scheduler-state.json`에 저장한다.
+
+기본 일정 `vault-content`는 AI 없이 `vault.content.refresh`를 실행해 Project·Service·Idea·Idea Set catalog를 게시한다. `idea-curate`는 AI 사서가 설정된 경우에만 실행되며, `none` 모드에서는 `AI_DISABLED`로 비활성화된다. 기존 영속 설정의 `idea-index` 일정은 호환을 위해 유지되지만 새 기본 설정에는 포함하지 않는다. 기존 override의 `enabled: true`도 operation의 AI 가용성 제한을 우회하지 못한다.
 
 다른 host 디렉터리를 사용하려면 다음 값을 변경한다.
 
