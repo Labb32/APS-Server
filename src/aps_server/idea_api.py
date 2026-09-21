@@ -16,10 +16,12 @@ from .content_models import (
     IdeaSearchRequest,
     IdeaSearchResponse,
     IdeaSetCreateRequest,
+    IdeaSetDetailResponse,
     IdeaSetMutationResponse,
     IdeaSimilarResponse,
     IdeaUpdateRequest,
     IdeasResponse,
+    IdeaSetsResponse,
     RecommendedIdeaSetResponse,
 )
 from .content_store import ContentStore
@@ -96,8 +98,10 @@ def build_idea_router(
         idea_status: IdeaStatusFilter = Query(default="all", alias="status"),
         idea_set_id: str | None = Query(default=None, pattern=r"^idea_set_[A-Z0-9]+$"),
         _: str = Depends(content_reader),
-    ) -> IdeasResponse:
-        return _filter(current_content(), idea_status, idea_set_id)
+        format: Literal["json", "html"] = Depends(content_format),
+    ) -> IdeasResponse | HTMLResponse:
+        response = _filter(current_content(), idea_status, idea_set_id)
+        return html_content(html_renderer.ideas(response, idea_status), response.sha256) if format == "html" else response
 
     @router.post("/v1/ideas/search", response_model=IdeaSearchResponse)
     def lexical_idea_search(request: IdeaSearchRequest, _: str = Depends(content_reader)) -> IdeaSearchResponse:
@@ -139,12 +143,29 @@ def build_idea_router(
     def get_idea(
         idea_id: str = APIPath(pattern=r"^idea_[A-Z0-9]+$"),
         _: str = Depends(content_reader),
-    ) -> IdeaDetailResponse:
+        format: Literal["json", "html"] = Depends(content_format),
+    ) -> IdeaDetailResponse | HTMLResponse:
         content = current_content()
         idea = next((item for item in content.data.ideas if item.idea_id == idea_id), None)
         if idea is None:
             raise ContentAPIError(status.HTTP_404_NOT_FOUND, "IDEA_NOT_FOUND", "Idea를 찾을 수 없습니다.")
-        return IdeaDetailResponse(vault_commit=content.vault_commit, generated_at=content.generated_at, idea=idea)
+        response = IdeaDetailResponse(vault_commit=content.vault_commit, generated_at=content.generated_at, idea=idea)
+        return html_content(html_renderer.idea_detail(content, idea), content.sha256) if format == "html" else response
+
+    @router.get("/v1/idea-sets", response_model=IdeaSetsResponse)
+    def list_idea_sets(
+        status_filter: Literal["suggested", "approved", "rejected", "archived"] | None = Query(default=None, alias="status"),
+        _: str = Depends(content_reader),
+        format: Literal["json", "html"] = Depends(content_format),
+    ) -> IdeaSetsResponse | HTMLResponse:
+        content = current_content()
+        sets = [item for item in content.data.idea_sets if status_filter is None or item.status == status_filter]
+        response = IdeaSetsResponse.model_validate({
+            **content.model_dump(mode="json", exclude={"content_type", "data", "sha256"}),
+            "data": [item.model_dump(mode="json") for item in sets], "sha256": content.sha256,
+        })
+        response = update_data_checksum(response)
+        return html_content(html_renderer.idea_sets(response), response.sha256) if format == "html" else response
 
     @router.get("/v1/idea-sets/recommended", response_model=RecommendedIdeaSetResponse)
     def get_recommended_idea_set(_: str = Depends(content_reader)) -> RecommendedIdeaSetResponse:
@@ -158,6 +179,19 @@ def build_idea_router(
             generated_at=content.generated_at,
             idea_set=candidates[0],
         )
+
+    @router.get("/v1/idea-sets/{idea_set_id}", response_model=IdeaSetDetailResponse)
+    def get_idea_set(
+        idea_set_id: str = APIPath(pattern=r"^idea_set_[A-Z0-9]+$"),
+        _: str = Depends(content_reader),
+        format: Literal["json", "html"] = Depends(content_format),
+    ) -> IdeaSetDetailResponse | HTMLResponse:
+        content = current_content()
+        item = next((item for item in content.data.idea_sets if item.idea_set_id == idea_set_id), None)
+        if item is None:
+            raise ContentAPIError(status.HTTP_404_NOT_FOUND, "IDEA_SET_NOT_FOUND", "Idea Set not found")
+        response = IdeaSetDetailResponse(vault_commit=content.vault_commit, generated_at=content.generated_at, idea_set=item)
+        return html_content(html_renderer.idea_set_detail(content, item), content.sha256) if format == "html" else response
 
     @router.post("/v1/ideas", response_model=IdeaMutationResponse, status_code=status.HTTP_201_CREATED)
     def create_idea(request: IdeaCreateRequest, role: str = Depends(authenticate)) -> IdeaMutationResponse:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from html import escape
 from pathlib import Path
+import re
 from urllib.parse import quote
 
 from .content_models import (
@@ -9,6 +10,7 @@ from .content_models import (
     IdeaSet,
     IdeaItem,
     IdeasResponse,
+    IdeaSetsResponse,
     Issue,
     ProjectBriefing,
     ProjectBriefingResponse,
@@ -16,6 +18,8 @@ from .content_models import (
     ServiceMaintenanceItem,
     ServiceMaintenanceResponse,
     TaskItem,
+    VaultDocumentDetailResponse,
+    VaultDocumentListResponse,
 )
 
 
@@ -44,13 +48,79 @@ class HTMLRenderer:
             "APS_CONTENT_CSS": self.css,
         }
 
+    def vault_document_list(self, response: VaultDocumentListResponse, collection: str) -> str:
+        title = "APS Projects" if collection == "projects" else "APS Services"
+        rows = []
+        for document in response.data.documents:
+            url = f"/v1/{collection}/{quote(document.document_id, safe='')}?format=html"
+            rows.append(
+                "<tr>"
+                f'<td class="mono">{self._text(document.document_id)}</td>'
+                f'<td><a href="{url}">{self._text(document.name)}</a></td>'
+                f'<td>{self._text(document.status or "-")}</td>'
+                f'<td>{self._text(document.summary or "-")}</td></tr>'
+            )
+        values = self._base(response, title)
+        table_rows = "".join(rows) or '<tr><td colspan="4">No documents</td></tr>'
+        values["BODY_HTML"] = (
+            f'<p>{len(response.data.documents)} documents</p>'
+            '<div class="table-scroll"><table><thead><tr><th>ID</th><th>Name</th><th>Status</th><th>Summary</th></tr></thead>'
+            f'<tbody>{table_rows}</tbody></table></div>'
+        )
+        return self._render("vault_document.html", values, {"APS_CONTENT_CSS", "STALE_BADGE_HTML", "BODY_HTML"})
+
+    def vault_document_detail(self, response: VaultDocumentDetailResponse, collection: str) -> str:
+        document = response.data.document
+        metadata = "".join(
+            f"<dt>{self._text(key)}</dt><dd>{self._text(value)}</dd>"
+            for key, value in sorted(document.metadata.items())
+        )
+        values = self._base(response, document.name)
+        values["BODY_HTML"] = (
+            f'<p class="mono">{self._text(document.document_id)} · {self._text(document.status or "-")}</p>'
+            f'<p>{self._text(document.summary)}</p><dl>{metadata}</dl>'
+            f'<section><h2>Markdown</h2><pre class="markdown-source">{self._text(document.content)}</pre></section>'
+            f'<p><a href="/v1/{collection}?format=html">Back to {self._text(collection)}</a></p>'
+        )
+        return self._render("vault_document.html", values, {"APS_CONTENT_CSS", "STALE_BADGE_HTML", "BODY_HTML"})
+
+    def _idea_page(self, response: IdeasResponse | IdeaSetsResponse, title: str, body: str) -> str:
+        values = self._base(response, title)
+        values["BODY_HTML"] = body
+        return self._render("vault_document.html", values, {"APS_CONTENT_CSS", "STALE_BADGE_HTML", "BODY_HTML"})
+
+    def idea_detail(self, response: IdeasResponse, idea: IdeaItem) -> str:
+        body = (
+            f'<p class="mono">{self._text(idea.idea_id)} · {self._text(idea.status)}</p>'
+            f'<p>{self._text(idea.summary)}</p>'
+            f'<pre class="markdown-source">{self._text(idea.content)}</pre>'
+        )
+        return self._idea_page(response, idea.title, body)
+
+    def idea_sets(self, response: IdeaSetsResponse) -> str:
+        rows = []
+        for item in response.data:
+            url = "/v1/idea-sets/" + quote(item.idea_set_id, safe="") + "?format=html"
+            rows.append(f'<li><a href="{url}">{self._text(item.title)}</a> · {self._text(item.status)}</li>')
+        return self._idea_page(response, "APS Idea Sets", f'<p>{len(rows)} Idea Sets</p><ul>{"".join(rows)}</ul>')
+
+    def idea_set_detail(self, response: IdeasResponse, idea_set: IdeaSet) -> str:
+        members = "".join(f"<li>{self._text(item)}</li>" for item in idea_set.member_idea_ids)
+        body = (
+            f'<p class="mono">{self._text(idea_set.idea_set_id)} · {self._text(idea_set.status)}</p>'
+            f'<p>{self._text(idea_set.summary)}</p><ul>{members}</ul>'
+            f'<pre class="markdown-source">{self._text(idea_set.content)}</pre>'
+        )
+        return self._idea_page(response, idea_set.title, body)
+
     def _render(self, filename: str, values: dict[str, str], raw: set[str]) -> str:
         document = (self.templates / filename).read_text(encoding="utf-8")
+        missing = set(re.findall(r"\{\{([A-Z_]+)\}\}", document)) - values.keys()
+        if missing:
+            raise ValueError(f"unresolved HTML template placeholder in {filename}: {', '.join(sorted(missing))}")
         for key, value in values.items():
             replacement = value if key in raw else self._text(value)
             document = document.replace("{{" + key + "}}", replacement)
-        if "{{" in document or "}}" in document:
-            raise ValueError(f"unresolved HTML template placeholder in {filename}")
         return document
 
     def _task(self, task: TaskItem) -> str:

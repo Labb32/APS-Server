@@ -87,10 +87,12 @@ class OperationHandlers:
         with self.vault.locked():
             self.vault.require_clean()
             commit = self.vault.commit()
-            return OperationResult(
-                output={"documents": load_vault_documents(self.vault.root), "ideas": load_idea_catalog(self.vault.root)},
-                vault_commit=commit,
-            )
+            try:
+                documents = load_vault_documents(self.vault.root)
+                ideas = load_idea_catalog(self.vault.root)
+            except (OSError, ValueError, IdeaCatalogError) as error:
+                raise OperationError(str(error), "VAULT_DOCUMENT_INVALID") from error
+            return OperationResult(output={"documents": documents, "ideas": ideas}, vault_commit=commit)
 
     def ideas_curate(self, _: CreateJobRequest) -> OperationResult:
         if self.agent is None:

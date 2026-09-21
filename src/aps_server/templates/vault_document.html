@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="aps-vault-commit" content="{{VAULT_COMMIT}}">
+  <meta name="aps-generated-at" content="{{GENERATED_AT}}">
+  <title>{{PAGE_TITLE}}</title>
+  <style>{{APS_CONTENT_CSS}}</style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="masthead">
+      <h1>{{PAGE_TITLE}}</h1>
+      <div class="stamp">COMMIT {{VAULT_COMMIT_SHORT}}<br>{{GENERATED_AT}}<br>{{STALE_BADGE_HTML}}</div>
+    </header>
+    {{BODY_HTML}}
+    <footer><span>APS SERVER / VAULT DOCUMENT</span><span>SHA256 {{SHA256}}</span></footer>
+  </main>
+</body>
+</html>

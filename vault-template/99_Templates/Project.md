@@ -1,5 +1,6 @@
 ---
 type: project
+project_id: example-project
 tier: T2
 final_form: deployed_service
 status: Planning
@@ -28,5 +29,6 @@ created:
 
 ## ProjectContext
 
+- Replace `project_id` with a unique stable ID before saving. It must stay the same when the file is renamed.
 - When changing `status` to `In_Progress`, assign a stable `briefing_id` and create `05_ProjectContexts/<briefing_id>/.brief/brief.md`.
 - Keep device-local source paths in `.aps.local.json`, never in this tracked document.

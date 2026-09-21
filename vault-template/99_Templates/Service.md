@@ -1,5 +1,6 @@
 ---
 type: service
+service_id: example-service
 service_status: Active
 maintenance_cycle:
 maintenance_interval_days: 0
@@ -12,6 +13,8 @@ launched_date:
 # Service
 
 ## Overview and Links
+
+- Replace `service_id` with a unique stable ID before saving. It must stay the same when the file is renamed.
 
 - Deployment form:
 - Public or internal URL:

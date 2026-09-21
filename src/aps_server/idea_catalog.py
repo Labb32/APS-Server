@@ -48,6 +48,8 @@ def _frontmatter(path: Path, vault_root: Path) -> dict[str, Any]:
         if not match:
             raise IdeaCatalogError(f"{path.name}: unsupported frontmatter line {index + 1}")
         key, raw_value = match.groups()
+        if key in metadata:
+            raise IdeaCatalogError(f"{path.name}: duplicate {key}")
         raw_value = (raw_value or "").strip()
         index += 1
 
@@ -73,6 +75,18 @@ def _frontmatter(path: Path, vault_root: Path) -> dict[str, Any]:
             metadata[key] = _scalar(raw_value)
 
     return metadata
+
+
+def _markdown_body(path: Path, vault_root: Path) -> str:
+    text = read_vault_text(vault_root, path).replace("\r\n", "\n")
+    lines = text.splitlines(keepends=True)
+    closing = next((index for index in range(1, len(lines)) if lines[index].strip() == "---"), None)
+    if closing is None:
+        raise IdeaCatalogError(f"{path.name}: frontmatter is not closed")
+    body = "".join(lines[closing + 1:]).lstrip("\n")
+    if len(body) > 50000:
+        raise IdeaCatalogError(f"{path.name}: Markdown body exceeds 50000 characters")
+    return body
 
 
 def _required_string(metadata: dict[str, Any], key: str, path: Path) -> str:
@@ -125,6 +139,7 @@ def load_idea_catalog(vault_root: Path) -> dict[str, list[dict[str, Any]]]:
                 "status": _required_string(metadata, "status", path),
                 "idea_set_ids": _string_list(metadata, "idea_set_ids", path),
                 "updated_at": _timestamp(_required_string(metadata, "updated_at", path), path),
+                "content": _markdown_body(path, vault_root),
             }
         )
 
@@ -154,6 +169,7 @@ def load_idea_catalog(vault_root: Path) -> dict[str, list[dict[str, Any]]]:
                     "summary": _required_string(metadata, "summary", path),
                     "status": _required_string(metadata, "status", path),
                     "member_idea_ids": members,
+                    "content": _markdown_body(path, vault_root),
                 }
             )
 

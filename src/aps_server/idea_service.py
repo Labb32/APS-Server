@@ -30,6 +30,7 @@ from .idea_catalog import (
     IDEA_SET_DIRECTORY,
     IdeaCatalogError,
     _frontmatter,
+    _markdown_body,
     load_idea_catalog,
 )
 from .vault import VaultPushError, VaultRepository
@@ -132,7 +133,7 @@ class IdeaService:
         for path in sorted(self.inbox.glob("idea_*.md")):
             metadata = _frontmatter(path, self.vault.root)
             if metadata.get("type") == "idea":
-                ideas.append(self._idea_from_metadata(metadata, "inbox"))
+                ideas.append(self._idea_from_metadata(metadata, "inbox").model_copy(update={"content": _markdown_body(path, self.vault.root)}))
             elif metadata.get("type") == "idea_set":
                 idea_sets.append(
                     IdeaSet.model_validate(
@@ -145,6 +146,7 @@ class IdeaService:
                             "member_idea_ids": metadata.get("member_idea_ids") or [],
                             "storage": "inbox",
                             "commit_status": "pending",
+                            "content": _markdown_body(path, self.vault.root),
                         }
                     )
                 )

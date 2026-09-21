@@ -72,6 +72,10 @@ li + li { margin-top: 6px; }
 .completion { display: block; margin-top: 2px; color: var(--muted); font-size: .85rem; }
 
 footer { display: flex; justify-content: space-between; gap: 20px; padding: 24px 0 34px; color: var(--muted); font: .68rem monospace; }
+.markdown-source { white-space: pre-wrap; overflow-wrap: anywhere; padding: 20px; border: 2px solid var(--ink); background: var(--panel); }
+dl { display: grid; grid-template-columns: minmax(120px, 1fr) 3fr; gap: 6px 16px; }
+dt { font-weight: 800; }
+dd { margin: 0; overflow-wrap: anywhere; }
 
 @media (max-width: 760px) {
   .masthead, .section-head, footer { align-items: start; flex-direction: column; }

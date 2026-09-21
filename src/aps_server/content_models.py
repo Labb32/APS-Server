@@ -59,12 +59,16 @@ class ContentEnvelope(ContractModel):
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
-class VaultDocument(ContractModel):
+class VaultDocumentSummary(ContractModel):
     document_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")
     name: str = Field(min_length=1, max_length=200)
     status: str = Field(default="", max_length=80)
     tier: str | None = Field(default=None, max_length=20)
     summary: str = Field(default="", max_length=2000)
+    metadata: dict[str, str] = Field(default_factory=dict)
+
+
+class VaultDocument(VaultDocumentSummary):
     content: str = Field(max_length=50000)
 
 
@@ -76,6 +80,24 @@ class VaultDocumentsData(ContractModel):
 class VaultDocumentsResponse(ContentEnvelope):
     content_type: Literal["vault_documents"] = "vault_documents"
     data: VaultDocumentsData
+
+
+class VaultDocumentListData(ContractModel):
+    documents: list[VaultDocumentSummary] = Field(default_factory=list)
+
+
+class VaultDocumentListResponse(ContentEnvelope):
+    content_type: Literal["vault_document_list"] = "vault_document_list"
+    data: VaultDocumentListData
+
+
+class VaultDocumentDetailData(ContractModel):
+    document: VaultDocument
+
+
+class VaultDocumentDetailResponse(ContentEnvelope):
+    content_type: Literal["vault_document_detail"] = "vault_document_detail"
+    data: VaultDocumentDetailData
 
 
 class DailySummary(ContractModel):
@@ -158,6 +180,7 @@ class IdeaItem(ContractModel):
     updated_at: datetime
     storage: Literal["vault", "inbox"] = "vault"
     commit_status: Literal["committed", "pending"] = "committed"
+    content: str = Field(default="", max_length=50000)
 
 
 class IdeaSet(ContractModel):
@@ -169,6 +192,7 @@ class IdeaSet(ContractModel):
     member_idea_ids: list[IdeaId] = Field(min_length=1, max_length=100)
     storage: Literal["vault", "inbox"] = "vault"
     commit_status: Literal["committed", "pending"] = "committed"
+    content: str = Field(default="", max_length=50000)
 
 
 class IdeaCreateRequest(ContractModel):
@@ -430,6 +454,17 @@ class RecommendedIdeaSetResponse(ContractModel):
     vault_commit: str = Field(pattern=r"^[0-9a-f]{7,64}$")
     generated_at: datetime
     idea_set: IdeaSet
+
+
+class IdeaSetDetailResponse(ContractModel):
+    vault_commit: str = Field(pattern=r"^[0-9a-f]{7,64}$")
+    generated_at: datetime
+    idea_set: IdeaSet
+
+
+class IdeaSetsResponse(ContentEnvelope):
+    content_type: Literal["idea_sets"] = "idea_sets"
+    data: list[IdeaSet] = Field(default_factory=list)
 
 
 class ContentStatusItem(ContractModel):

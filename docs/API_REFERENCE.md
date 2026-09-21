@@ -1,5 +1,20 @@
 # APS Server API Reference
 
+## Core Vault document reads (CORE-02)
+
+`vault.content.refresh` is available to operator and scheduler tokens without AI. It publishes Project, Service, Idea and Idea Set catalogs from one clean Vault revision. Before the first successful refresh, catalog reads return `404 CONTENT_NOT_GENERATED`. An empty collection after refresh returns `200` with an empty list. A malformed document fails refresh and keeps the last published catalog.
+
+| Resource | List | Detail | JSON data |
+|---|---|---|---|
+| Projects | `GET /v1/projects` | `GET /v1/projects/{project_id}` | `documents[]` summaries; `document` with Markdown `content` |
+| Services | `GET /v1/services` | `GET /v1/services/{service_id}` | Same shape |
+| Ideas | `GET /v1/ideas` | `GET /v1/ideas/{idea_id}` | Existing response with Markdown `content` |
+| Idea Sets | `GET /v1/idea-sets` | `GET /v1/idea-sets/{idea_set_id}` | Full list; detail uses the existing `idea_set` response shape |
+
+Reads require an operator or viewer token. List routes accept an optional exact `status` filter and default to every status. `?format=html` uses a fixed server template and escapes Markdown. Project and Service details include `vault_commit`, `generated_at`, normalized metadata and the allowed Markdown body. Unknown IDs return `PROJECT_NOT_FOUND`, `SERVICE_NOT_FOUND`, `IDEA_NOT_FOUND` or `IDEA_SET_NOT_FOUND`.
+
+Projects require a stable `project_id` (legacy `briefing_id` is accepted); Services require `service_id`. IDs remain stable when filenames change. Missing, duplicate or malformed IDs and frontmatter fail refresh. The separate `/v1/content/projects`, `/v1/content/projects/{project_id}/briefing` and `/v1/content/services/maintenance` routes continue to serve generated briefing or maintenance results.
+
 문서 버전 `0.1.0` · 기준일 `2026-09-20`
 
 이 문서는 현재 FastAPI 애플리케이션이 제공하는 실제 client 계약이다. 전체 machine-readable schema는 [aps-api.openapi.json](../specs/aps-api.openapi.json), 향후 endpoint와 설계 배경은 [CONTENT_API.md](CONTENT_API.md), 구성 요소 경계는 [ARCHITECTURE.md](ARCHITECTURE.md)를 참고한다.

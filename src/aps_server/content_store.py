@@ -68,17 +68,15 @@ class ContentStore:
         self.generator_version = generator_version
         self._lock = threading.RLock()
 
-    @classmethod
-    def _read(cls, path: Path, model: type[ContentModel]) -> ContentModel:
-        if not path.is_file():
-            raise KeyError(path.name)
-        raw = json.loads(path.read_text(encoding="utf-8"))
-        # Verify the serialized payload before Pydantic normalization can alter
-        # defaults or representation and hide on-disk corruption.
-        if not isinstance(raw, dict) or raw.get("sha256") != canonical_checksum(raw.get("data")):
-            raise ValueError("stored content checksum does not match canonical data")
-        value = model.model_validate(raw)
-        return value
+    def _read(self, path: Path, model: type[ContentModel]) -> ContentModel:
+        with self._lock:
+            if not path.is_file():
+                raise KeyError(path.name)
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            # Verify bytes before Pydantic defaults can hide on-disk corruption.
+            if not isinstance(raw, dict) or raw.get("sha256") != canonical_checksum(raw.get("data")):
+                raise ValueError("stored content checksum does not match canonical data")
+            return model.model_validate(raw)
 
     @staticmethod
     def _payload_data(payload: dict[str, Any]) -> dict[str, Any]:
@@ -310,14 +308,26 @@ class ContentStore:
     def publish(self, publications: list[ContentPublication]) -> None:
         temporary_paths: list[tuple[Path, Path]] = []
         with self._lock:
+            originals: dict[Path, bytes | None] = {}
+            replaced: list[Path] = []
             try:
                 for publication in publications:
                     publication.path.parent.mkdir(parents=True, exist_ok=True)
                     temporary = publication.path.with_suffix(publication.path.suffix + ".tmp")
                     temporary.write_bytes(canonical_json_bytes(publication.response))
                     temporary_paths.append((temporary, publication.path))
+                    originals[publication.path] = publication.path.read_bytes() if publication.path.is_file() else None
                 for temporary, destination in temporary_paths:
                     temporary.replace(destination)
+                    replaced.append(destination)
+            except Exception:
+                for destination in reversed(replaced):
+                    original = originals[destination]
+                    if original is None:
+                        destination.unlink(missing_ok=True)
+                    else:
+                        destination.write_bytes(original)
+                raise
             finally:
                 for temporary, _ in temporary_paths:
                     temporary.unlink(missing_ok=True)
@@ -339,6 +349,7 @@ class ContentStore:
 
     def status(self) -> ContentStatusResponse:
         sources: dict[str, tuple[Path, type[BaseModel]]] = {
+            "vault_documents": (self.root / "vault_documents.json", VaultDocumentsResponse),
             "daily_briefing": (self.root / "daily_briefing.json", DailyBriefingResponse),
             "project_catalog": (self.root / "project_catalog.json", ProjectCatalogResponse),
             "service_maintenance": (self.root / "service_maintenance.json", ServiceMaintenanceResponse),

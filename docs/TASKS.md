@@ -25,7 +25,8 @@
   - 완료 조건: provider/key/model과 확장 없이 기동·기본 API 사용이 가능하며 AI 작업은 실행·원본 변경 없이 일관된 비활성 상태를 반환한다.
   - 확인: 임시 Vault에서 `none`, 누락·잘못된 endpoint, 연결 실패 provider의 health·operations·Job·Scheduler·권한 흐름을 직접 호출했다. 코드 테스트는 실행하지 않았다.
 
-- [ ] **CORE-02 — 일반 문서 API와 briefing 분리**
+- [x] **CORE-02 — 일반 문서 API와 briefing 분리**
+  - 확인: 임시 Vault에서 `vault.content.refresh`, 권한, 목록·상세 JSON/HTML, Idea Set, 파일명 변경 후 ID 유지, 잘못된 frontmatter 실패와 이전 게시 결과 보존을 직접 호출했다. 코드 테스트는 실행하지 않았다.
   - 대상: `vault_catalog.py`, `content_models.py`, `content_store.py`, `content_api.py`, `html_renderer.py`, `templates/`, `models.py`, `operations.py`.
   - Idea·Idea Set·Project·Service의 목록·상세를 AI 없이 제공한다. 기본 목록은 진행 중·운영 중 상태로 제한하지 않는다.
   - 논리 ID, 이름 변경 시 ID 안정성, frontmatter 파싱, 누락·중복·잘못된 metadata 처리를 정리한다.

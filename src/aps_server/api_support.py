@@ -49,7 +49,7 @@ def load_content(loader: Callable[[], ContentResponse]) -> ContentResponse:
 def update_data_checksum(response: ContentResponse) -> ContentResponse:
     """Recalculate the checksum after applying a response-only filter or overlay."""
 
-    response.sha256 = canonical_checksum(getattr(response, "data"))
+    response.sha256 = canonical_checksum(response.model_dump(mode="json")["data"])
     return response
 
 
