@@ -18,7 +18,7 @@
 | Project 목록·상세 | active | `/v1/projects`, `/v1/projects/{project_id}`. 전체 상태를 기본 조회하고 허용된 Markdown 본문 포함 |
 | Service 목록·상세 | active | `/v1/services`, `/v1/services/{service_id}`. 전체 상태를 기본 조회하고 허용된 Markdown 본문 포함 |
 | Idea Set 전체 목록·상세 | active | 기존 추천 endpoint의 의미를 유지하면서 별도 계약 정의 |
-| `text/plain` Inbox POST | planned | 기존 JSON 접수 유지. 고정 Inbox 대상에만 허용하고 길이·문자셋·정규화·중복 요청을 정의 |
+| `text/plain` Inbox POST | active | `POST /v1/ideas/text`. 기존 JSON 접수 유지, UTF-8·길이·정규화·Idempotency-Key 검증 |
 | 공통 문서 검색 | planned | 고정 collection과 논리 ID를 사용. 기존 Idea 검색 API는 유지 |
 | archive 다운로드 | planned | `migration` 확장의 operator 전용 만료 Artifact. 일반 Content와 분리 |
 | archive 업로드로 새 Vault 시작 | blocked | staging 검증, 사전 등록 대상 ID, 실패 복구가 준비된 뒤 활성화 |
@@ -36,4 +36,4 @@ API 요청과 내부 cron은 같은 고정 operation·Job 경로를 사용한다
 
 ## 쓰기 경계
 
-Inbox 접수·pending 수정은 서버 소유 Git-ignored `00_Inbox`에만 기록한다. 자동 tracked Idea/Set 쓰기는 검증된 `01_Ideas`·`01_Idea_Sets` 대상 Scheduler commit 흐름으로 제한한다. 기존 tracked Idea 직접 `PATCH`와 이 지침의 차이는 호환 전환 계약을 정한 뒤 해결한다. Project/Service 제안은 원본 반영 전까지 파생 artifact만 만든다. Vault sync는 clean worktree의 fast-forward만 허용하며 자동 merge·reset·강제 checkout·force push를 하지 않는다.
+Inbox 접수·pending 수정은 서버 소유 Git-ignored `00_Inbox`에만 기록한다. 자동 tracked Idea/Set 쓰기는 검증된 `01_Ideas`·`01_Idea_Sets` 대상 Scheduler commit 흐름으로 제한한다. tracked Idea 직접 `PATCH`는 `409 IDEA_TRACKED_UPDATE_DISABLED`로 거부한다. Project/Service 제안은 원본 반영 전까지 파생 artifact만 만든다. Vault sync는 clean worktree의 fast-forward만 허용하며 자동 merge·reset·강제 checkout·force push를 하지 않는다.

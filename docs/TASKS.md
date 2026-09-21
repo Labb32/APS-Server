@@ -34,7 +34,8 @@
   - 일반 문서 API와 기존 Project catalog/Service maintenance/briefing 응답의 호환 방식을 정의한다. 기존 응답 의미를 임의로 교체하지 않는다.
   - 완료 조건: 확장 없이 목록·상세와 JSON/HTML이 일관되며 Content GET이 AI나 생성 Job을 실행하지 않는다.
 
-- [ ] **CORE-03 — Inbox 축적과 사서 정리 분리**
+- [x] **CORE-03 — Inbox 축적과 사서 정리 분리**
+  - 확인: 임시 Vault에서 최초 빈 catalog, JSON/text 접수, 중복 키·재시작, merge/Set pending, 권한 거부, tracked PATCH 차단과 Git revision 유지 흐름을 직접 호출했다. 코드 테스트는 실행하지 않았다.
   - 대상: `idea_api.py`, `idea_service.py`, `idea_catalog.py`, `operations.py`, `agent/tasks/ideas.py`.
   - none 모드 신규 입력은 Inbox에 남고 자동 Idea 승격·병합·Set 정리를 하지 않는다. 기존 tracked Idea·Set은 계속 조회한다.
   - catalog가 아직 생성되지 않은 최초 실행에서도 접수한 Inbox를 읽을 수 있게 초기화/빈 catalog 계약을 정의한다.

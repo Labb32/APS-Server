@@ -14,7 +14,7 @@
 
 Vault는 Idea, Idea Set, Project, Service와 관련 Markdown·첨부를 보관한다. Git 모드 동기화는 clean worktree에서 fast-forward만 허용한다. 자동 merge·reset·강제 checkout·force push는 하지 않는다.
 
-Inbox 접수는 서버가 관리하는 Git-ignored `00_Inbox`에만 기록한다. 자동 tracked Idea/Set 쓰기는 검증된 `01_Ideas`·`01_Idea_Sets` 대상 Scheduler commit gate를 통과한다. 기존 tracked Idea 직접 `PATCH`와 이 지침의 차이는 [개선 작업](../tasks/003-inbox-idea-flow.md)에서 정리한다. Project/Service 원본 변경은 proposal branch·diff·명시적 승인 흐름 전까지 막는다.
+Inbox 접수와 pending 수정은 서버가 관리하는 Git-ignored `00_Inbox`에만 기록한다. 자동 tracked Idea/Set 쓰기는 검증된 `01_Ideas`·`01_Idea_Sets` 대상 Scheduler commit gate를 통과한다. tracked Idea 직접 `PATCH`는 `409 IDEA_TRACKED_UPDATE_DISABLED`로 거부한다. Project/Service 원본 변경은 proposal branch·diff·명시적 승인 흐름 전까지 막는다.
 
 ## Core 실행
 

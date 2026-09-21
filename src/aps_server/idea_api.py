@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import unicodedata
 from typing import Callable, Literal
 
-from fastapi import APIRouter, Depends, Path as APIPath, Query, status
+from fastapi import APIRouter, Depends, Header, Path as APIPath, Query, Request, status
 from fastapi.responses import HTMLResponse
 
 from .api_support import ContentAPIError, content_format, html_content, load_content, update_data_checksum
@@ -26,10 +27,9 @@ from .content_models import (
 )
 from .content_store import ContentStore
 from .html_renderer import HTMLRenderer
-from .idea_catalog import IdeaCatalogError, load_idea_catalog
+from .idea_catalog import IdeaCatalogError
 from .idea_search import search_ideas, similar_ideas
 from .idea_service import IdeaService, IdeaServiceError
-from .vault import VaultError, VaultRepository
 
 
 IdeaStatusFilter = Literal["inbox", "incubator", "organized", "proposed", "published", "archived", "all"]
@@ -39,7 +39,7 @@ def _write_error(error: Exception) -> ContentAPIError:
     code = getattr(error, "code", "IDEA_WRITE_FAILED")
     if code == "IDEA_NOT_FOUND":
         return ContentAPIError(status.HTTP_404_NOT_FOUND, code, str(error))
-    if code in {"VAULT_DIRTY", "IDEA_STATUS_INVALID", "IDEA_INBOX_NOT_IGNORED"}:
+    if code in {"VAULT_DIRTY", "IDEA_STATUS_INVALID", "IDEA_INBOX_NOT_IGNORED", "IDEA_TRACKED_UPDATE_DISABLED", "IDEMPOTENCY_KEY_REUSED"}:
         return ContentAPIError(status.HTTP_409_CONFLICT, code, str(error))
     return ContentAPIError(status.HTTP_500_INTERNAL_SERVER_ERROR, code, str(error))
 
@@ -61,7 +61,6 @@ def build_idea_router(
     content_store: ContentStore,
     html_renderer: HTMLRenderer,
     ideas: IdeaService,
-    vault: VaultRepository,
     authenticate: Callable[..., str],
     content_reader: Callable[..., str],
 ) -> APIRouter:
@@ -72,7 +71,7 @@ def build_idea_router(
     def current_content() -> IdeasResponse:
         # Inbox is intentionally overlaid at read time: intake remains cheap and
         # visible without running AI or rebuilding the committed catalog.
-        response = load_content(content_store.ideas).model_copy(deep=True)
+        response = load_content(content_store.ideas_or_empty).model_copy(deep=True)
         try:
             response.data = ideas.overlay(response.data)
         except (OSError, ValueError, KeyError, IdeaCatalogError) as error:
@@ -194,10 +193,50 @@ def build_idea_router(
         return html_content(html_renderer.idea_set_detail(content, item), content.sha256) if format == "html" else response
 
     @router.post("/v1/ideas", response_model=IdeaMutationResponse, status_code=status.HTTP_201_CREATED)
-    def create_idea(request: IdeaCreateRequest, role: str = Depends(authenticate)) -> IdeaMutationResponse:
+    def create_idea(
+        request: IdeaCreateRequest,
+        role: str = Depends(authenticate),
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", pattern=r"^[A-Za-z0-9._~-]{8,128}$"),
+    ) -> IdeaMutationResponse:
         require_operator(role)
         try:
-            return IdeaMutationResponse(idea=ideas.create(request))
+            return IdeaMutationResponse(idea=ideas.create(request, idempotency_key=idempotency_key))
+        except (OSError, ValueError, IdeaServiceError) as error:
+            raise _write_error(error) from error
+
+    @router.post(
+        "/v1/ideas/text",
+        response_model=IdeaMutationResponse,
+        status_code=status.HTTP_201_CREATED,
+        responses={413: {"description": "Text body too large"}, 415: {"description": "Unsupported media type"}},
+        openapi_extra={"requestBody": {"required": True, "content": {"text/plain": {"schema": {"type": "string", "minLength": 1, "maxLength": 10000}}}}},
+    )
+    async def create_idea_text(
+        request: Request,
+        role: str = Depends(authenticate),
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", pattern=r"^[A-Za-z0-9._~-]{8,128}$"),
+    ) -> IdeaMutationResponse:
+        require_operator(role)
+        parts = [part.strip().lower() for part in request.headers.get("content-type", "").split(";")]
+        if not parts or parts[0] != "text/plain" or any(part.startswith("charset=") and part != "charset=utf-8" for part in parts[1:]):
+            raise ContentAPIError(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE", "Use text/plain with UTF-8")
+        chunks: list[bytes] = []
+        size = 0
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > 40000:
+                raise ContentAPIError(status.HTTP_413_CONTENT_TOO_LARGE, "IDEA_CONTENT_TOO_LARGE", "Text exceeds 40000 bytes")
+            chunks.append(chunk)
+        try:
+            value = b"".join(chunks).decode("utf-8", errors="strict")
+        except UnicodeDecodeError as error:
+            raise ContentAPIError(status.HTTP_422_UNPROCESSABLE_CONTENT, "IDEA_TEXT_INVALID", "Text must be UTF-8") from error
+        value = unicodedata.normalize("NFC", value.replace("\r\n", "\n").replace("\r", "\n")).strip()
+        if not value or len(value) > 10000 or any(unicodedata.category(char) == "Cc" and char not in "\n\t" for char in value):
+            raise ContentAPIError(status.HTTP_422_UNPROCESSABLE_CONTENT, "IDEA_TEXT_INVALID", "Text must contain 1 to 10000 printable characters")
+        try:
+            item = ideas.create(IdeaCreateRequest(content=value), idempotency_key=idempotency_key)
+            return IdeaMutationResponse(idea=item)
         except (OSError, ValueError, IdeaServiceError) as error:
             raise _write_error(error) from error
 
@@ -210,11 +249,8 @@ def build_idea_router(
         require_operator(role)
         try:
             item, commit = ideas.update(idea_id, request)
-            if commit:
-                publications = content_store.prepare_ideas(load_idea_catalog(vault.root), commit)
-                content_store.publish(publications)
             return IdeaMutationResponse(idea=item, vault_commit=commit)
-        except (OSError, ValueError, IdeaServiceError, VaultError) as error:
+        except (OSError, ValueError, IdeaServiceError) as error:
             raise _write_error(error) from error
 
     @router.post("/v1/idea-sets", response_model=IdeaSetMutationResponse, status_code=status.HTTP_202_ACCEPTED)

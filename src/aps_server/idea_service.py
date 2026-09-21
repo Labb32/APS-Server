@@ -1,12 +1,12 @@
-"""Constrained Idea writes for the ignored Inbox and tracked Idea folders.
+"""Constrained Idea writes for the ignored Inbox and curated Idea folders.
 
-This is intentionally not a generic Vault editor.  Pending intake is confined
-to ``00_Inbox``; only validated curation or an explicit Idea update reaches a
-tracked path and Git commit.
+This is intentionally not a generic Vault editor. Pending intake is confined
+to ``00_Inbox``; only validated curation reaches a tracked path and Git commit.
 """
 
 from __future__ import annotations
 
+import hashlib
 import os
 import secrets
 import threading
@@ -24,6 +24,7 @@ from .content_models import (
     IdeaUpdateRequest,
     IdeasData,
 )
+from .canonical import canonical_checksum
 from .idea_catalog import (
     IDEA_DIRECTORY,
     IDEA_INBOX_DIRECTORY,
@@ -66,7 +67,14 @@ def _body(vault_root: Path, path: Path) -> str | None:
     return parts[2].lstrip("\n") if len(parts) == 3 else None
 
 
-def _render_idea(item: IdeaItem, created_at: str, body: str | None = None, merge_sources: list[str] | None = None) -> str:
+def _render_idea(
+    item: IdeaItem,
+    created_at: str,
+    body: str | None = None,
+    merge_sources: list[str] | None = None,
+    intake_key_hash: str | None = None,
+    intake_request_hash: str | None = None,
+) -> str:
     lines = ["---", "type: idea", f"idea_id: {item.idea_id}", *_block("title", item.title)]
     lines.extend(_list_block("keywords", item.keywords))
     lines.extend(_block("summary", item.summary))
@@ -74,6 +82,8 @@ def _render_idea(item: IdeaItem, created_at: str, body: str | None = None, merge
     lines.extend(_list_block("idea_set_ids", item.idea_set_ids))
     if merge_sources:
         lines.extend(_list_block("merge_source_idea_ids", merge_sources))
+    if intake_key_hash:
+        lines.extend([f"intake_key_hash: {intake_key_hash}", f"intake_request_hash: {intake_request_hash}"])
     lines.extend([f"created_at: {created_at}", f"updated_at: {item.updated_at.isoformat()}", "---", ""])
     return "\n".join(lines) + (body if body is not None else f"# {item.title}\n\n{item.summary}\n")
 
@@ -99,9 +109,8 @@ def _atomic_write(path: Path, content: str) -> None:
 
 
 class IdeaService:
-    def __init__(self, vault: VaultRepository, sync_before_write: bool = True) -> None:
+    def __init__(self, vault: VaultRepository) -> None:
         self.vault = vault
-        self.sync_before_write = sync_before_write
         self.inbox = vault.root / IDEA_INBOX_DIRECTORY
         self._lock = threading.RLock()
 
@@ -162,23 +171,43 @@ class IdeaService:
         sets.update({item.idea_set_id: item for item in pending.idea_sets})
         return IdeasData(ideas=list(ideas.values()), idea_sets=list(sets.values()))
 
-    def create(self, request: IdeaCreateRequest, merge_sources: list[str] | None = None) -> IdeaItem:
+    def create(
+        self,
+        request: IdeaCreateRequest,
+        merge_sources: list[str] | None = None,
+        idempotency_key: str | None = None,
+    ) -> IdeaItem:
         now = datetime.now(UTC)
         content = request.content or request.summary or ""
         first_line = next((line.strip() for line in content.splitlines() if line.strip()), "Untitled Idea")
         title = request.title or first_line[:200]
         summary = request.summary or content[:2000]
-        item = IdeaItem(
-            idea_id=_id("idea_"), title=title, keywords=request.keywords,
-            summary=summary, status="inbox", idea_set_ids=[], updated_at=now,
-            storage="inbox", commit_status="pending",
-        )
-        with self._lock:
+        key_hash = hashlib.sha256(idempotency_key.encode("utf-8")).hexdigest() if idempotency_key else None
+        request_hash = canonical_checksum(request)
+        with self._lock, self.vault.locked():
+            if key_hash:
+                for directory, storage in ((self.inbox, "inbox"), (self.vault.root / IDEA_DIRECTORY, "vault")):
+                    if not directory.is_dir():
+                        continue
+                    for path in directory.glob("*.md"):
+                        metadata = _frontmatter(path, self.vault.root)
+                        if metadata.get("intake_key_hash") != key_hash:
+                            continue
+                        if metadata.get("intake_request_hash") != request_hash:
+                            raise IdeaServiceError("Idempotency-Key belongs to a different Idea request", "IDEMPOTENCY_KEY_REUSED")
+                        return self._idea_from_metadata(metadata, storage).model_copy(update={"content": _markdown_body(path, self.vault.root)})
+            item = IdeaItem(
+                idea_id=_id("idea_"), title=title, keywords=request.keywords,
+                summary=summary, status="inbox", idea_set_ids=[], updated_at=now,
+                storage="inbox", commit_status="pending",
+            )
             self._require_ignored(self.inbox / f"{item.idea_id}.md")
             body = f"# {item.title}\n\n{content}\n"
+            item = item.model_copy(update={"content": body})
             _atomic_write(
                 self.inbox / f"{item.idea_id}.md",
-                _render_idea(item, now.date().isoformat(), body=body, merge_sources=merge_sources),
+                _render_idea(item, now.date().isoformat(), body=body, merge_sources=merge_sources,
+                             intake_key_hash=key_hash, intake_request_hash=request_hash),
             )
         return item
 
@@ -200,8 +229,9 @@ class IdeaService:
             idea_set_id=_id("idea_set_"), title=request.title.strip(), keywords=list(dict.fromkeys(request.keywords)),
             summary=request.summary.strip(), status="suggested", member_idea_ids=request.member_idea_ids,
             storage="inbox", commit_status="pending",
+            content=f"# {request.title.strip()}\n\n{request.summary.strip()}\n",
         )
-        with self._lock:
+        with self._lock, self.vault.locked():
             self._require_ignored(self.inbox / f"{item.idea_set_id}.md")
             _atomic_write(self.inbox / f"{item.idea_set_id}.md", _render_set(item, now.date().isoformat()))
         return item
@@ -216,47 +246,26 @@ class IdeaService:
     def update(self, idea_id: str, request: IdeaUpdateRequest) -> tuple[IdeaItem, str | None]:
         with self._lock, self.vault.locked():
             pending_path = self.inbox / f"{idea_id}.md"
-            committed_path = self._find_committed(idea_id)
-            path = pending_path if pending_path.is_file() else committed_path
-            if path is None:
+            if not pending_path.is_file():
+                if self._find_committed(idea_id):
+                    raise IdeaServiceError("Tracked Idea updates require a proposal and approval flow", "IDEA_TRACKED_UPDATE_DISABLED")
                 raise IdeaServiceError("Idea not found", "IDEA_NOT_FOUND")
+            path = pending_path
             metadata = _frontmatter(path, self.vault.root)
-            current = self._idea_from_metadata(metadata, "inbox" if path == pending_path else "vault")
+            current = self._idea_from_metadata(metadata, "inbox")
             changes = request.model_dump(exclude_unset=True)
             updated = current.model_copy(update={**changes, "updated_at": datetime.now(UTC)})
             created_at = str(metadata.get("created_at") or updated.updated_at.date().isoformat())
             merge_sources = metadata.get("merge_source_idea_ids") or []
-            if path == pending_path:
-                if updated.status != "inbox":
-                    raise IdeaServiceError("pending Idea status must remain inbox", "IDEA_STATUS_INVALID")
-                self._require_ignored(path)
-                _atomic_write(path, _render_idea(updated, created_at, _body(self.vault.root, path), merge_sources))
-                return updated, None
-
-            if updated.status == "inbox":
-                raise IdeaServiceError("tracked Idea status cannot be changed to inbox", "IDEA_STATUS_INVALID")
-
-            if self.sync_before_write:
-                self.vault.sync()
-                path = self._find_committed(idea_id)
-                if path is None:
-                    raise IdeaServiceError("Idea disappeared after Vault sync", "IDEA_NOT_FOUND")
-                metadata = _frontmatter(path, self.vault.root)
-                current = self._idea_from_metadata(metadata, "vault")
-                updated = current.model_copy(update={**changes, "updated_at": datetime.now(UTC)})
-            else:
-                self.vault.require_clean()
-            original = read_vault_bytes(self.vault.root, path)
-            try:
-                _atomic_write(path, _render_idea(updated, str(metadata.get("created_at") or updated.updated_at.date()), _body(self.vault.root, path)))
-                load_idea_catalog(self.vault.root)
-                commit = self.vault.commit_paths([path], f"idea: update {idea_id}")
-            except VaultPushError:
-                raise
-            except Exception:
-                path.write_bytes(original)
-                raise
-            return updated, commit
+            if updated.status != "inbox":
+                raise IdeaServiceError("pending Idea status must remain inbox", "IDEA_STATUS_INVALID")
+            self._require_ignored(path)
+            body = _body(self.vault.root, path)
+            _atomic_write(path, _render_idea(
+                updated, created_at, body, merge_sources,
+                metadata.get("intake_key_hash"), metadata.get("intake_request_hash"),
+            ))
+            return updated.model_copy(update={"content": body or ""}), None
 
     def curate(self, plan: IdeaCurationPlan | None = None) -> dict[str, list[dict[str, Any]]]:
         with self._lock, self.vault.locked():
@@ -330,6 +339,8 @@ class IdeaService:
                             str(metadata.get("created_at") or committed.updated_at.date()),
                             _body(self.vault.root, source),
                             metadata.get("merge_source_idea_ids") or [],
+                            metadata.get("intake_key_hash"),
+                            metadata.get("intake_request_hash"),
                         ),
                     )
                     destinations.append(destination)

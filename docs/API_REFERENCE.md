@@ -2,7 +2,7 @@
 
 ## Core Vault document reads (CORE-02)
 
-`vault.content.refresh` is available to operator and scheduler tokens without AI. It publishes Project, Service, Idea and Idea Set catalogs from one clean Vault revision. Before the first successful refresh, catalog reads return `404 CONTENT_NOT_GENERATED`. An empty collection after refresh returns `200` with an empty list. A malformed document fails refresh and keeps the last published catalog.
+`vault.content.refresh` is available to operator and scheduler tokens without AI. It publishes Project, Service, Idea and Idea Set catalogs from one clean Vault revision. Before the first successful refresh, Project and Service reads return `404 CONTENT_NOT_GENERATED`; Idea and Idea Set reads use an empty catalog so pending Inbox entries remain visible. An empty collection returns `200` with an empty list. A malformed document fails refresh and keeps the last published catalog.
 
 | Resource | List | Detail | JSON data |
 |---|---|---|---|
@@ -396,7 +396,7 @@ Job에 등록되고 `/data/artifacts/{job_id}` 아래로 검증된 파일만 반
 
 ## 5. Materialized Content API
 
-Content GET은 Codex나 provider를 실행하지 않고 마지막 정상 JSON만 반환한다.
+Content GET은 Codex나 provider를 실행하지 않는다. Idea 조회는 마지막 정상 JSON에 Git-ignored Inbox의 pending 항목을 겹쳐 표시한다.
 
 ### 공통 envelope
 
@@ -434,7 +434,7 @@ Content GET은 Codex나 provider를 실행하지 않고 마지막 정상 JSON만
 
 ## 6. Idea Resource API
 
-Idea API는 게시된 `ideas.json`만 사용한다. 현재 검색 응답은 항상 `search_mode: lexical`, `index_provider: aps-server`다.
+Idea API는 게시된 `ideas.json`에 Git-ignored `00_Inbox`의 pending 항목을 겹쳐 표시한다. 첫 index 게시 전에는 빈 catalog를 사용하므로 Inbox 접수와 조회가 가능하다. 이때 `vault_commit: "0000000"`은 실제 Git revision이 아닌 미게시 표시다. tracked Idea·Set은 `ideas.index.refresh` 또는 `vault.content.refresh`가 게시된 뒤 나타난다. 검색 응답은 `search_mode: lexical`, `index_provider: aps-server`다.
 
 ### `GET /v1/ideas`
 
@@ -467,7 +467,7 @@ Idea API는 게시된 `ideas.json`만 사용한다. 현재 검색 응답은 항�
 }
 ```
 
-실패: `404 IDEA_NOT_FOUND`, `404 CONTENT_NOT_GENERATED`, 공통 인증·검증·Content 오류.
+실패: `404 IDEA_NOT_FOUND`, 공통 인증·검증·Content 오류.
 
 ### `POST /v1/ideas/search`
 
@@ -536,7 +536,7 @@ Idea 쓰기는 `operator`만 허용한다. 모든 파일명과 Vault 경로는 �
 
 ### `POST /v1/ideas`
 
-고정 `00_Inbox`에 새 Idea를 원자적으로 저장한다.
+고정 `00_Inbox`에 새 Idea를 원자적으로 저장한다. JSON 요청은 기존 `/v1/ideas`를 사용한다.
 
 ```json
 {
@@ -568,15 +568,22 @@ Idea 쓰기는 `operator`만 허용한다. 모든 파일명과 Vault 경로는 �
 }
 ```
 
+### `POST /v1/ideas/text`
+
+`Content-Type: text/plain` 또는 `text/plain; charset=utf-8`로 UTF-8 본문을 보낸다. 최대 40,000바이트, NFC·LF 정규화와 trim 후 1~10,000자이며 제어 문자는 tab과 줄바꿈만 허용한다. 본문은 자유 형식 agent 지시나 Vault 경로로 해석하지 않고 `POST /v1/ideas`의 `content`와 동일한 고정 Inbox 접수로 처리한다. 성공 응답은 같은 `IdeaMutationResponse`, 상태는 `201`이다. 다른 media type은 `415 UNSUPPORTED_MEDIA_TYPE`, 잘못된 UTF-8·빈 내용·초과 길이는 `422 IDEA_TEXT_INVALID` 또는 `413 IDEA_CONTENT_TOO_LARGE`다.
+
+두 POST 모두 선택적 `Idempotency-Key`(8~128자, 영숫자와 `._~-`)를 받는다. 같은 키와 동일한 정규화 요청을 다시 보내면 기존 Idea ID와 현재 상태를 반환한다. 같은 키에 다른 요청을 보내면 `409 IDEMPOTENCY_KEY_REUSED`다. 키의 hash는 Inbox 문서에 저장하고 정리 commit 후에도 tracked Idea에 보존한다. 키가 없으면 각 요청을 새 접수로 처리한다.
+
 ### `PATCH /v1/ideas/{idea_id}`
 
-`title`, `keywords`, `summary`, `status` 중 하나 이상만 전송한다. pending Idea 수정은 Inbox에 즉시 반영하며 `status`는 `inbox`로 유지해야 한다. tracked Idea 수정은 clean worktree와 fast-forward-only sync를 확인하고 대상 Markdown 한 개만 commit한 뒤 canonical `ideas.json`도 같은 commit 기준으로 갱신한다.
+`title`, `keywords`, `summary`, `status` 중 하나 이상만 전송한다. pending Idea 수정은 Inbox에 즉시 반영하며 `status`는 `inbox`로 유지해야 한다. tracked Idea에 대한 기존 즉시 commit 동작은 중단했다. 같은 경로의 tracked 수정 요청은 `409 IDEA_TRACKED_UPDATE_DISABLED`를 반환하며 원본을 변경하지 않는다. 추후 proposal·승인 흐름이 마련되면 별도 계약으로 제공한다.
 
-성공은 `200 OK`다. pending 수정이면 `vault_commit: null`, tracked 수정이면 새 7~64자 Git commit ID가 들어간다.
+성공은 `200 OK`이고 pending 수정의 `vault_commit`은 `null`이다.
 
 ### `POST /v1/ideas/merge`
 
 원본 2~20개를 보존하면서 통합 결과를 새 pending Idea로 접수한다. 현재 Core는 client가 제공한 정규형 title/keywords/summary를 저장하며 자동 AI 재작성은 수행하지 않는다.
+AI `none` 모드에서도 접수할 수 있지만 자동 병합·tracked commit은 하지 않는다. `commit_status: pending`이 실제 상태다.
 
 ```json
 {
@@ -601,6 +608,7 @@ Idea 쓰기는 `operator`만 허용한다. 모든 파일명과 Vault 경로는 �
 ```
 
 구성원은 1~100개의 중복 없는 기존 또는 pending Idea ID여야 한다. 성공 `202 Accepted` 응답은 `idea_set.storage: inbox`, `commit_status: pending`, `status: suggested`를 반환한다.
+AI `none` 모드에서도 후보를 Inbox에 접수할 수 있다. 추천 조회는 저장된 후보를 읽을 뿐 AI 생성 Job을 시작하지 않는다.
 
 ### `ideas.curate` Job
 

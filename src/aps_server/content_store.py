@@ -67,6 +67,9 @@ class ContentStore:
             path.mkdir(parents=True, exist_ok=True)
         self.generator_version = generator_version
         self._lock = threading.RLock()
+        # A read before the first index publication still has a stable envelope.
+        # The all-zero revision means no Idea catalog has been published yet.
+        self._empty_ideas = self._ideas_publication({"ideas": [], "idea_sets": []}, "0000000", datetime.now(UTC)).response
 
     def _read(self, path: Path, model: type[ContentModel]) -> ContentModel:
         with self._lock:
@@ -346,6 +349,12 @@ class ContentStore:
 
     def ideas(self) -> IdeasResponse:
         return self._read(self.root / "ideas.json", IdeasResponse)
+
+    def ideas_or_empty(self) -> IdeasResponse:
+        try:
+            return self.ideas()
+        except KeyError:
+            return self._empty_ideas.model_copy(deep=True)
 
     def status(self) -> ContentStatusResponse:
         sources: dict[str, tuple[Path, type[BaseModel]]] = {

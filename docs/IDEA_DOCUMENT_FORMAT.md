@@ -39,6 +39,7 @@ updated_at: 2026-08-31
 - `created_at`과 `updated_at`은 ISO 8601 날짜 또는 일시를 사용한다. 조회 JSON의 `updated_at`은 APS가 timezone이 포함된 일시로 정규화한다.
 - 본문과 링크는 사람이 읽는 설명이다. 임베딩과 기본 lexical 검색 입력은 `title + keywords + summary`로 제한한다.
 - Inbox 문서는 `status: inbox`와 `commit_status: pending`으로 응답하며, 아직 commit되지 않은 새 Idea의 수정도 Inbox에만 반영한다.
+- `Idempotency-Key`를 보낸 접수에는 원문 키 대신 `intake_key_hash`와 `intake_request_hash`를 저장한다. 정리 commit 후에도 두 hash를 보존해 같은 ID로 재요청을 처리한다.
 
 ## Idea set frontmatter
 

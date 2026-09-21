@@ -117,9 +117,8 @@ def _timestamp(value: str, path: Path) -> str:
 
 def load_idea_catalog(vault_root: Path) -> dict[str, list[dict[str, Any]]]:
     idea_directory = vault_root / IDEA_DIRECTORY
-    if not idea_directory.is_dir():
-        raise IdeaCatalogError("Vault 01_Ideas directory is missing")
-
+    if idea_directory.exists() and not idea_directory.is_dir():
+        raise IdeaCatalogError("Vault 01_Ideas must be a directory")
     ideas: list[dict[str, Any]] = []
     seen_idea_ids: set[str] = set()
     for path in sorted(idea_directory.glob("*.md"), key=lambda item: item.name.casefold()):

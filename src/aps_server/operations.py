@@ -98,7 +98,7 @@ class OperationHandlers:
         if self.agent is None:
             raise OperationError("AI curation is disabled; Inbox entries remain pending", "AI_DISABLED")
         try:
-            service = IdeaService(self.vault, sync_before_write=False)
+            service = IdeaService(self.vault)
             pending = service.pending()
             if pending.ideas:
                 committed = IdeasData.model_validate(load_idea_catalog(self.vault.root))

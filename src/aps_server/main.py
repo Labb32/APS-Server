@@ -44,7 +44,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     content_store = ContentStore(settings.data_path)
     html_renderer = HTMLRenderer()
     vault = VaultRepository(settings.vault_path, push_after_commit=settings.vault_push_after_commit)
-    ideas = IdeaService(vault, settings.sync_before_job)
+    ideas = IdeaService(vault)
     extensions = ExtensionRegistry(settings.extensions_path)
     ai_configured, _ = provider_status(settings)
     agent = build_agent_executor(settings, vault, extensions) if settings.ai_enabled and ai_configured else None
@@ -162,7 +162,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return role
 
     app.include_router(build_content_router(content_store, html_renderer, content_reader))
-    app.include_router(build_idea_router(content_store, html_renderer, ideas, vault, authenticate, content_reader))
+    app.include_router(build_idea_router(content_store, html_renderer, ideas, authenticate, content_reader))
 
     @app.get("/health/live")
     def live() -> dict[str, str]:
