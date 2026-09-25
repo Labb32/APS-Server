@@ -168,6 +168,7 @@ class ServiceMaintenanceResponse(ContentEnvelope):
 IdeaId = Annotated[str, Field(pattern=r"^idea_[A-Z0-9]+$")]
 IdeaSetId = Annotated[str, Field(pattern=r"^idea_set_[A-Z0-9]+$")]
 IdeaKeyword = Annotated[str, Field(min_length=1, max_length=80)]
+SearchCollection = Literal["inbox", "idea", "idea_set", "project", "service"]
 
 
 class IdeaItem(ContractModel):
@@ -442,6 +443,57 @@ class IdeaSimilarResponse(ContractModel):
     index_provider: Literal["aps-server"] = "aps-server"
     vault_commit: str = Field(pattern=r"^[0-9a-f]{7,64}$")
     results: list[IdeaSearchResult] = Field(default_factory=list)
+
+
+class DocumentSearchRequest(ContractModel):
+    query: str = Field(min_length=1, max_length=200)
+    collections: list[SearchCollection] = Field(default_factory=list, max_length=5)
+    statuses: list[str] = Field(default_factory=list, max_length=20)
+    offset: int = Field(default=0, ge=0, le=10000)
+    limit: int = Field(default=20, ge=1, le=100)
+
+    @field_validator("query")
+    @classmethod
+    def normalized_query(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("query must not be blank")
+        return value
+
+    @field_validator("collections", "statuses")
+    @classmethod
+    def unique_filters(cls, values: list[str]) -> list[str]:
+        normalized = [value.strip() for value in values]
+        if any(not value or len(value) > 80 for value in normalized):
+            raise ValueError("filters must be non-blank and at most 80 characters")
+        if len(set(normalized)) != len(normalized):
+            raise ValueError("filters must be unique")
+        return normalized
+
+
+class DocumentSearchResult(ContractModel):
+    collection: SearchCollection
+    document_id: str = Field(min_length=1, max_length=100)
+    title: str = Field(min_length=1, max_length=200)
+    status: str = Field(default="", max_length=80)
+    summary: str = Field(default="", max_length=500)
+    score: float = Field(ge=0, le=1)
+    matched_by: list[Literal["title", "keyword", "summary", "embedding"]] = Field(default_factory=list)
+
+
+class DocumentSearchResponse(ContractModel):
+    query: str
+    search_mode: Literal["hybrid", "lexical_fallback"]
+    index_provider: Literal["aps-server"] = "aps-server"
+    embedding_model: str | None = Field(default=None, max_length=100)
+    index_revision: str = Field(pattern=r"^[0-9a-f]{64}$")
+    indexed_at: datetime
+    stale: bool = False
+    total: int = Field(ge=0)
+    offset: int = Field(ge=0)
+    limit: int = Field(ge=1, le=100)
+    next_offset: int | None = Field(default=None, ge=0)
+    results: list[DocumentSearchResult] = Field(default_factory=list)
 
 
 class IdeaDetailResponse(ContractModel):

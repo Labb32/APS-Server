@@ -7,13 +7,13 @@ to ``00_Inbox``; only validated curation reaches a tracked path and Git commit.
 from __future__ import annotations
 
 import hashlib
-import os
 import secrets
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .atomic import write_text
 from .content_models import (
     IdeaCreateRequest,
     IdeaCurationPlan,
@@ -99,13 +99,7 @@ def _render_set(item: IdeaSet, created_at: str) -> str:
 
 
 def _atomic_write(path: Path, content: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{secrets.token_hex(6)}.tmp")
-    try:
-        temporary.write_text(content, encoding="utf-8", newline="\n")
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
+    write_text(path, content, newline="\n")
 
 
 class IdeaService:

@@ -16,6 +16,8 @@ Vault는 Idea, Idea Set, Project, Service와 관련 Markdown·첨부를 보관�
 
 Inbox 접수와 pending 수정은 서버가 관리하는 Git-ignored `00_Inbox`에만 기록한다. 자동 tracked Idea/Set 쓰기는 검증된 `01_Ideas`·`01_Idea_Sets` 대상 Scheduler commit gate를 통과한다. tracked Idea 직접 `PATCH`는 `409 IDEA_TRACKED_UPDATE_DISABLED`로 거부한다. Project/Service 원본 변경은 proposal branch·diff·명시적 승인 흐름 전까지 막는다.
 
+Core 검색은 materialized catalog와 현재 Inbox에서 고정 collection 문서를 만들고 `${APS_DATA_PATH}/search/index.json`에 증분 색인을 저장한다. lexical 점수와 내장 subword 임베딩을 결합하며 외부 AI·GPU·Vector DB를 요구하지 않는다. source 오류 시 이전 정상 색인을 stale 결과로 유지한다.
+
 ## Core 실행
 
 Core는 Bearer token 역할, 고정 API·operation schema, bounded in-process queue, cron, Vault sync, 결과 schema/checksum, 원자적 게시, Artifact와 감사 정보를 관리한다. API와 cron은 같은 Job 경로를 사용한다. 조회는 저장된 결과를 읽을 뿐 AI·동기화·생성 Job을 시작하지 않는다. 생성 실패 시 이전 정상 결과를 보존한다.

@@ -92,6 +92,7 @@ APS Server는 IP, Origin 또는 proxy header를 사용자 인증 근거로 사�
 | `422` | `REQUEST_VALIDATION_FAILED` | body, path 또는 query schema 오류 |
 | `422` | `IDEA_TEXT_INVALID` | text Inbox 본문 인코딩·길이·문자 오류 |
 | `500` | `CONTENT_INVALID` | 저장 JSON의 schema/checksum 오류 |
+| `500` | `SEARCH_INDEX_INVALID` | 최초 검색 색인을 source에서 만들 수 없음 |
 | `500` | `INTERNAL_ERROR` | 분류되지 않은 서버 오류 |
 | `503` | `DEPENDENCY_NOT_READY` | Core Vault 또는 인증 설정 미준비 |
 | `503` | `AI_DISABLED` | AI provider가 `none`인 작업 요청 |
@@ -526,6 +527,24 @@ Idea API는 게시된 `ideas.json`에 Git-ignored `00_Inbox`의 pending 항목�
 `limit`은 1~50, 기본 5다. 자기 자신을 제외하고 제목 문자열 유사도, keyword Jaccard와 summary token Jaccard를 결합한다.
 
 실패: `404 IDEA_NOT_FOUND`와 공통 Idea 오류.
+
+### `POST /v1/search`
+
+Inbox·Idea·Idea Set·Project·Service의 제목·키워드·요약을 검색한다. `operator`와 `viewer`가 호출할 수 있고 AI provider나 `aps-index`를 사용하지 않는다.
+
+```json
+{
+  "query":"검색 색인",
+  "collections":["idea","project"],
+  "statuses":["organized","In_Progress"],
+  "offset":0,
+  "limit":20
+}
+```
+
+`query`는 trim 후 1~200자다. 빈 collection·status 배열은 전체를 뜻하며 collection은 `inbox`, `idea`, `idea_set`, `project`, `service`만 허용한다. status는 정확 일치, `offset`은 0~10,000, `limit`은 1~100이다.
+
+성공 `200`은 `search_mode`, `embedding_model`, `index_revision`, `indexed_at`, `stale`, `total`, `next_offset`과 결과를 반환한다. 결과는 collection·논리 ID·제목·상태·요약·0~1 점수 및 `title`, `keyword`, `summary`, `embedding` 일치 근거를 포함한다. 정상 모드는 `hybrid`와 `aps-hash-subword-v1-256`이며 임베딩 실패 시 `lexical_fallback`과 `embedding_model:null`이다. source 오류 중에는 이전 정상 색인을 `stale:true`로 제공하고, 최초 구축 실패는 `500 SEARCH_INDEX_INVALID`다. 상세 수명주기와 품질 범위는 [Core 검색](SEARCH.md)을 따른다.
 
 ### `GET /v1/idea-sets/recommended`
 

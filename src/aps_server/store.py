@@ -6,6 +6,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
+from .atomic import write_text
 from .models import CreateJobRequest, ErrorDetail, Job, JobStatus, StoredJob
 
 
@@ -105,18 +106,17 @@ class JobStore:
 
     def save(self, stored: StoredJob) -> None:
         path = self.path_for(stored.public.job_id)
-        temporary = path.with_suffix(".tmp")
         with self._lock:
-            temporary.write_text(stored.model_dump_json(indent=2), encoding="utf-8")
-            temporary.replace(path)
+            write_text(path, stored.model_dump_json(indent=2))
 
     def cancel(self, job_id: str) -> StoredJob:
-        stored = self.get(job_id)
-        if stored.public.status != JobStatus.QUEUED:
-            raise ValueError("only queued jobs can be cancelled")
-        stored.public.status = JobStatus.CANCELLED
-        self.save(stored)
-        return stored
+        with self._lock:
+            stored = self.get(job_id)
+            if stored.public.status != JobStatus.QUEUED:
+                raise ValueError("only queued jobs can be cancelled")
+            stored.public.status = JobStatus.CANCELLED
+            self.save(stored)
+            return stored
 
     def discard_queued(self, job_id: str) -> None:
         path = self.path_for(job_id)

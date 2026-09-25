@@ -25,6 +25,7 @@ from .api_support import ContentAPIError
 from .config import Settings
 from .content_api import build_content_router
 from .content_store import ContentStore
+from .document_search import DocumentSearchIndex
 from .extensions import ExtensionListResponse, ExtensionRegistry
 from .html_renderer import HTMLRenderer
 from .idea_api import build_idea_router
@@ -34,6 +35,7 @@ from .operations import build_operation_registry
 from .runner import JobRunner
 from .runtime import OperationRegistryError
 from .scheduler import Scheduler, SchedulerStatus
+from .search_api import build_search_router
 from .store import JobStore
 from .vault import VaultRepository
 
@@ -45,6 +47,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     html_renderer = HTMLRenderer()
     vault = VaultRepository(settings.vault_path, push_after_commit=settings.vault_push_after_commit)
     ideas = IdeaService(vault)
+    search = DocumentSearchIndex(settings.data_path, content_store, ideas)
     extensions = ExtensionRegistry(settings.extensions_path)
     ai_configured, _ = provider_status(settings)
     agent = build_agent_executor(settings, vault, extensions) if settings.ai_enabled and ai_configured else None
@@ -163,6 +166,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(build_content_router(content_store, html_renderer, content_reader))
     app.include_router(build_idea_router(content_store, html_renderer, ideas, authenticate, content_reader))
+    app.include_router(build_search_router(search, content_reader))
 
     @app.get("/health/live")
     def live() -> dict[str, str]:

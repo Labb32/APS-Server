@@ -60,6 +60,11 @@ curl http://127.0.0.1:8080/v1/projects \
 
 curl http://127.0.0.1:8080/v1/operations \
   -H "Authorization: Bearer $APS_OPERATOR_TOKEN"
+
+curl -X POST http://127.0.0.1:8080/v1/search \
+  -H "Authorization: Bearer $APS_VIEWER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"검색 색인","collections":["idea","project"],"limit":10}'
 ```
 
 Idea 접수는 서버가 관리하는 Git-ignored `00_Inbox`에만 기록한다. 요청자가 Vault 경로·shell·AI prompt를 지정할 수 없다. Project·Service 조회는 첫 `vault.content.refresh` 완료 전 `CONTENT_NOT_GENERATED`를 반환한다. Idea 조회는 첫 게시 전에도 빈 catalog와 Inbox pending 항목을 제공한다. Content GET은 AI나 동기화 Job을 시작하지 않는다. 현재의 endpoint·schema·오류는 [API Reference](docs/API_REFERENCE.md)와 [OpenAPI](specs/aps-api.openapi.json)에 있다.
@@ -82,6 +87,7 @@ docker compose restart aps-server
 
 - [베타 목표](docs/PROJECT_PLAN.md) · [개발 순서](docs/TASKS.md) · [API 목표 계약](docs/CONTENT_API.md)
 - [현재 API](docs/API_REFERENCE.md) · [아키텍처](docs/ARCHITECTURE.md) · [AI 실행 설계](docs/AGENT_EXECUTOR_DESIGN.md)
+- [Core 검색](docs/SEARCH.md)
 - [배포](docs/CONTAINER_DEPLOYMENT.md) · [공개 전 확인](docs/PRE_RELEASE_QA.md) · [보안 정책](SECURITY.md)
 
 Vault sync는 clean worktree의 fast-forward만 허용한다. 자동 merge·reset·강제 checkout·force push는 하지 않는다. Project·Service 원본 변경은 proposal branch와 명시적 승인 기능 전까지 허용하지 않는다.

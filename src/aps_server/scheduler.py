@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from .atomic import write_text
 from .config import Settings
 from .extensions import CORE_OPERATIONS, ExtensionRegistry
 from .models import JobStatus
@@ -302,6 +303,4 @@ class Scheduler:
 
     @staticmethod
     def _atomic_write(path: Path, content: str) -> None:
-        temporary = path.with_suffix(path.suffix + ".tmp")
-        temporary.write_text(content, encoding="utf-8")
-        temporary.replace(path)
+        write_text(path, content)

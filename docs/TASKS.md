@@ -10,7 +10,7 @@
 | 작업 차단 | `operations.py`, `scheduler.py` | operation metadata 기반 AI 가용성, Job 즉시 거부, schedule 비활성 이유 적용 완료 |
 | 비AI 문서 | `vault_catalog.py`, `content_store.py`, `models.py` | `vault.content.refresh`와 Project·Service 목록·상세 제공. briefing 결과와 분리 완료 |
 | Inbox·Idea | `idea_api.py`, `idea_service.py` | 첫 catalog 전 Inbox 조회, JSON/text 접수와 pending merge/Set, tracked PATCH 차단 완료 |
-| 검색 | `idea_search.py`, `pyproject.toml` | Idea 전용 lexical/문자열 유사도. 소형 임베딩·공통 문서 검색 없음 |
+| 검색 | `idea_search.py`, `document_search.py` | 기존 Idea 검색 유지, 공통 lexical+subword 임베딩과 증분 로컬 색인 제공 |
 | 내부 실행 | `runner.py`, `scheduler.py` | in-process queue·cron·Job 상태와 AI 가용성 정책 적용. 외부 큐는 별도 작업 |
 | 외부 AI 실행 | `agent/providers.py` | Agent HTTP provider 있음. 비동기 외부 큐의 접수·상태·결과 계약은 별도 구현 필요 |
 | 선택 기능 | `extensions/briefing`, `extensions.py`, `config.py` | briefing 패키지와 index URL 설정 있음. 기능별 후속 작업은 plugins 문서에 격리 |
@@ -53,22 +53,23 @@
 
 ## P1 — 내장 경량 검색
 
-- [ ] **SEARCH-01 — 공통 검색 문서 모델** (CORE-02, CORE-03 이후)
+- [x] **SEARCH-01 — 공통 검색 문서 모델** (CORE-02, CORE-03 이후)
   - Idea 전용 검색을 공통 계층으로 분리하고 Inbox·Idea·Idea Set·Project·Service를 고정 collection과 논리 ID로 식별한다.
   - 제목·키워드·짧은 요약을 중심으로 색인한다. 누락된 키워드/요약의 비AI 추출 규칙과 입력 길이 제한을 정한다.
   - 기존 Idea search/similar API는 호환 유지하고 일반 문서 검색 계약을 별도로 추가한다.
   - 완료 조건: 종류·상태 필터와 결과 ID·일치 근거를 제공하며 요청자가 임의 경로를 지정하지 않는다.
 
-- [ ] **SEARCH-02 — 소형 임베딩 내장** (SEARCH-01 이후)
+- [x] **SEARCH-02 — 소형 임베딩 내장** (SEARCH-01 이후)
   - CPU 모델·runtime·라이선스·한국어 지원·배포 크기를 선정하고 메모리·처리량·문서 수 예산을 기록한다.
   - 모델 버전을 고정하고 배포/최초 다운로드/오프라인 정책을 정한다. 생성형 AI provider 설정과 분리한다.
   - lexical 점수와 embedding 유사도를 조합한다. 모델 실패 시 lexical로 동작하며 실제 사용한 검색 방식을 표시한다.
   - 완료 조건: 외부 AI·GPU·aps-index 없이 실제 임베딩 유사도 검색이 가능하다. 현재 문자열 유사도를 임베딩으로 표기하지 않는다.
 
-- [ ] **SEARCH-03 — 로컬 색인 수명주기** (SEARCH-02 이후)
+- [x] **SEARCH-03 — 로컬 색인 수명주기** (SEARCH-02 이후)
   - Vault commit·문서 hash·Inbox revision·model version으로 변경과 삭제를 감지하고 증분 갱신한다.
   - 서버 data 영역의 색인 저장·재시작 복구·모델 교체 재색인·실패 시 이전 정상 색인 보존을 구현한다.
   - 완료 조건: Git commit이 바뀌지 않는 Inbox도 반영되고 삭제 문서가 결과에 남지 않는다.
+  - 확인: 임시 Vault에서 전체·종류 필터, pagination, 재사용, Inbox 추가·삭제, tracked 삭제 후 refresh, 잘못된 source의 이전 색인 대체와 권한을 직접 호출했다. 코드 테스트는 실행하지 않았다.
 
 ## P2 — 선택 AI 사서와 실행 서비스
 

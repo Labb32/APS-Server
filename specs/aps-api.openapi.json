@@ -4358,6 +4358,129 @@
           }
         }
       }
+    },
+    "/v1/search": {
+      "post": {
+        "summary": "Search Documents",
+        "operationId": "search_documents_v1_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentSearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Operation forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource or materialized content not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Artifact expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Invalid content or internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency not ready",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -6984,6 +7107,222 @@
           "data"
         ],
         "title": "VaultDocumentsResponse"
+      },
+      "DocumentSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Query"
+          },
+          "collections": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "inbox",
+                "idea",
+                "idea_set",
+                "project",
+                "service"
+              ]
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Collections"
+          },
+          "statuses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Statuses"
+          },
+          "offset": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Offset",
+            "default": 0
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 20
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "DocumentSearchRequest"
+      },
+      "DocumentSearchResponse": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "search_mode": {
+            "type": "string",
+            "enum": [
+              "hybrid",
+              "lexical_fallback"
+            ],
+            "title": "Search Mode"
+          },
+          "index_provider": {
+            "type": "string",
+            "const": "aps-server",
+            "title": "Index Provider",
+            "default": "aps-server"
+          },
+          "embedding_model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding Model"
+          },
+          "index_revision": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Index Revision"
+          },
+          "indexed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Indexed At"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale",
+            "default": false
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit"
+          },
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Offset"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentSearchResult"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "query",
+          "search_mode",
+          "index_revision",
+          "indexed_at",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "title": "DocumentSearchResponse"
+      },
+      "DocumentSearchResult": {
+        "properties": {
+          "collection": {
+            "type": "string",
+            "enum": [
+              "inbox",
+              "idea",
+              "idea_set",
+              "project",
+              "service"
+            ],
+            "title": "Collection"
+          },
+          "document_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Document Id"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Status",
+            "default": ""
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Summary",
+            "default": ""
+          },
+          "score": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "matched_by": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "title",
+                "keyword",
+                "summary",
+                "embedding"
+              ]
+            },
+            "type": "array",
+            "title": "Matched By"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "collection",
+          "document_id",
+          "title",
+          "score"
+        ],
+        "title": "DocumentSearchResult"
       }
     },
     "securitySchemes": {

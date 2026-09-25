@@ -41,7 +41,7 @@ def _write_error(error: Exception) -> ContentAPIError:
         return ContentAPIError(status.HTTP_404_NOT_FOUND, code, str(error))
     if code in {"VAULT_DIRTY", "IDEA_STATUS_INVALID", "IDEA_INBOX_NOT_IGNORED", "IDEA_TRACKED_UPDATE_DISABLED", "IDEMPOTENCY_KEY_REUSED"}:
         return ContentAPIError(status.HTTP_409_CONFLICT, code, str(error))
-    return ContentAPIError(status.HTTP_500_INTERNAL_SERVER_ERROR, code, str(error))
+    return ContentAPIError(status.HTTP_500_INTERNAL_SERVER_ERROR, code, "Idea 작업을 완료할 수 없습니다.")
 
 
 def _filter(response: IdeasResponse, idea_status: IdeaStatusFilter, idea_set_id: str | None) -> IdeasResponse:
@@ -69,13 +69,15 @@ def build_idea_router(
     router = APIRouter()
 
     def current_content() -> IdeasResponse:
-        # Inbox is intentionally overlaid at read time: intake remains cheap and
-        # visible without running AI or rebuilding the committed catalog.
         response = load_content(content_store.ideas_or_empty).model_copy(deep=True)
         try:
             response.data = ideas.overlay(response.data)
         except (OSError, ValueError, KeyError, IdeaCatalogError) as error:
-            raise ContentAPIError(status.HTTP_500_INTERNAL_SERVER_ERROR, "IDEA_INBOX_INVALID", str(error)) from error
+            raise ContentAPIError(
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "IDEA_INBOX_INVALID",
+                "Inbox 콘텐츠를 읽을 수 없습니다.",
+            ) from error
         return update_data_checksum(response)
 
     def require_operator(role: str) -> None:
