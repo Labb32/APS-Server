@@ -1,6 +1,6 @@
 # APS Server
 
-APS Server는 한 사용자와 한 APS Vault를 연결하는 self-hosted API다. Vault 문서를 원본으로 사용하고, 인증된 조회·Inbox 접수·고정 Job을 제공한다. AI는 선택 사항이다. 현재 버전은 `0.1.0` pre-release이며 [베타 목표](docs/PROJECT_PLAN.md)의 모든 기능이 구현된 상태는 아니다.
+APS Server는 한 사용자와 한 APS Vault를 연결하는 self-hosted API다. Vault 문서를 원본으로 사용하고, 인증된 조회·Inbox 접수·고정 Job을 제공한다. AI는 선택 사항이다. 현재 버전은 `0.2.0` pre-release이며 [베타 목표](docs/PROJECT_PLAN.md)의 모든 기능이 구현된 상태는 아니다.
 
 ## 빠른 시작
 
@@ -10,7 +10,7 @@ Docker Engine과 Compose를 준비하고 설정 파일을 만든다.
 cp .env.example .env
 ```
 
-`.env`에 서로 다른 긴 `APS_OPERATOR_TOKEN`, `APS_VIEWER_TOKEN`, `APS_SCHEDULER_TOKEN`을 넣는다. 기본 `APS_VAULT_MODE=local`, `APS_AI_PROVIDER=none`으로 Core를 시작할 수 있다. AI 생성 작업을 사용하려면 [provider 설정](docs/AI_PROVIDERS.md)을 추가한다.
+`.env`에 서로 다른 긴 `APS_OPERATOR_TOKEN`, `APS_VIEWER_TOKEN`, `APS_SCHEDULER_TOKEN`을 넣는다. 기본 `APS_VAULT_MODE=local`, `APS_AI_PROVIDER=none`으로 Core를 시작할 수 있다. AI 생성 작업을 사용하려면 [AI 실행·provider 설정](docs/AI_EXECUTION.md)을 참고한다.
 
 ```bash
 docker compose config
@@ -85,8 +85,8 @@ docker compose restart aps-server
 
 ## 문서
 
-- [베타 목표](docs/PROJECT_PLAN.md) · [개발 순서](docs/TASKS.md) · [API 목표 계약](docs/CONTENT_API.md)
-- [현재 API](docs/API_REFERENCE.md) · [아키텍처](docs/ARCHITECTURE.md) · [AI 실행 설계](docs/AGENT_EXECUTOR_DESIGN.md)
+- [베타 목표](docs/PROJECT_PLAN.md) · [구현 현황과 다음 작업](docs/TASKS.md) · [개발 노트](docs/DEVELOPMENT_NOTES.md)
+- [현재 API](docs/API_REFERENCE.md) · [아키텍처](docs/ARCHITECTURE.md) · [AI 실행·provider 설정](docs/AI_EXECUTION.md)
 - [Core 검색](docs/SEARCH.md)
 - [배포](docs/CONTAINER_DEPLOYMENT.md) · [공개 전 확인](docs/PRE_RELEASE_QA.md) · [보안 정책](SECURITY.md)
 

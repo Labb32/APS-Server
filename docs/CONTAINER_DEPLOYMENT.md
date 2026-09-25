@@ -146,7 +146,7 @@ APS_AI_STRUCTURED_OUTPUT=true
 
 `APS_AI_PROVIDER`의 기본값은 `none`이다. 선택한 provider의 key·model·endpoint가 부족해도 Core는 기동하며 AI operation만 `PROVIDER_NOT_CONFIGURED`로 비활성화한다. 필수 값은 `openai`의 key/model, `openai-compatible`의 base URL/model, `agent-http`의 base URL이다.
 
-전체 provider 계약과 호환 모드는 [AI provider 설정](AI_PROVIDERS.md)을 참고한다.
+전체 provider 설정과 호환 모드는 [AI 실행·provider 안내](AI_EXECUTION.md)를 참고한다.
 
 ## 5. 선택형 aps-index 연결
 

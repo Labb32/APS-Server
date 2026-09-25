@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "APS Content and Automation API",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "paths": {
     "/health/live": {

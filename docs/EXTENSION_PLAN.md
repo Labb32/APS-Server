@@ -52,7 +52,7 @@
 
 ## 선행 조건과 완료 판단
 
-- 공통 선행: [001 Core 가용성](../tasks/001-none-mode-capabilities.md), [002 일반 문서 API](../tasks/002-core-document-api.md), 선택 AI 큐의 고정 operation·결과 검증 계약.
+- 공통 선행: Core 가용성과 문서 API, 선택 AI 큐의 고정 operation·결과 검증 계약. 현재 상태는 [작업 현황](TASKS.md)을 따른다.
 - `briefing`: Project/Service 대상 상태와 JSON/HTML 호환 계약.
 - `migration`: 일관된 snapshot·작업 잠금, 제한된 Artifact/업로드·staging·새 Vault 대상 계약. AI는 필요하지 않다.
 - `service-security`: Service 식별 metadata, 제한 network broker와 AI 실행 계약.

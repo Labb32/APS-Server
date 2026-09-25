@@ -79,7 +79,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     }
     app = FastAPI(
         title="APS Content and Automation API",
-        version="0.1.0",
+        version="0.2.0",
         lifespan=lifespan,
         responses=error_responses,
     )

@@ -45,6 +45,6 @@ briefing/
 - `05_ProjectContexts/<briefing_id>/.brief/brief.md`
 - APS Core AI bridge와 `schemas/briefing_response.schema.json`
 
-provider, endpoint, model과 credential은 APS Server 설정에만 존재한다. 확장은 이를 요청 인자나 manifest로 받지 않는다. 지원 provider는 [AI provider 설정](../../docs/AI_PROVIDERS.md)을 따른다.
+provider, endpoint, model과 credential은 APS Server 설정에만 존재한다. 확장은 이를 요청 인자나 manifest로 받지 않는다. 지원 provider는 [AI 실행·provider 안내](../../docs/AI_EXECUTION.md)를 따른다.
 
 이 저장소에 포함된 `briefing` package는 APS Server 배포물의 일부로서 루트 [Apache License 2.0](../../LICENSE)과 [NOTICE](../../NOTICE)를 따른다.

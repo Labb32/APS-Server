@@ -1,8 +1,8 @@
 # APS Server API Reference
 
-문서 버전 `0.1.0` · 기준일 `2026-09-21`
+문서 버전 `0.2.0` · 기준일 `2026-09-25`
 
-이 문서는 현재 FastAPI 애플리케이션이 제공하는 실제 client 계약이다. 전체 machine-readable schema는 [aps-api.openapi.json](../specs/aps-api.openapi.json), 향후 endpoint와 설계 배경은 [CONTENT_API.md](CONTENT_API.md), 구성 요소 경계는 [ARCHITECTURE.md](ARCHITECTURE.md)를 참고한다.
+이 문서는 현재 FastAPI 애플리케이션이 제공하는 실제 client 계약이다. 전체 machine-readable schema는 [aps-api.openapi.json](../specs/aps-api.openapi.json), 제품의 목표 범위는 [PROJECT_PLAN](PROJECT_PLAN.md), 구성 요소 경계는 [ARCHITECTURE](ARCHITECTURE.md)를 참고한다.
 
 ## 1. 공통 규칙
 
@@ -411,7 +411,7 @@ Content GET은 Codex나 provider를 실행하지 않는다. Idea 조회는 마�
   "content_type":"ideas",
   "generated_at":"2026-09-01T00:00:03+00:00",
   "vault_commit":"0123456789abcdef0123456789abcdef01234567",
-  "generator_version":"0.1.0",
+  "generator_version":"0.2.0",
   "stale":false,
   "partial_failure":false,
   "sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
