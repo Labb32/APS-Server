@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import unicodedata
 from datetime import date, datetime
 from typing import Annotated, Literal
 
@@ -207,9 +208,11 @@ class IdeaCreateRequest(ContractModel):
     def text_must_not_be_blank(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        value = value.strip()
+        value = unicodedata.normalize("NFC", value.replace("\r\n", "\n").replace("\r", "\n")).strip()
         if not value:
             raise ValueError("value must not be blank")
+        if any(unicodedata.category(char) == "Cc" and char not in "\n\t" for char in value):
+            raise ValueError("value contains unsupported control characters")
         return value
 
     @model_validator(mode="after")

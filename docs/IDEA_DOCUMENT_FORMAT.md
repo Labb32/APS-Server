@@ -1,6 +1,6 @@
 # Idea document format
 
-APS Server는 Vault의 Idea Markdown을 원본으로 사용하고, frontmatter의 정규화 필드로 조회용 JSON을 생성한다.
+APS Server는 Inbox 원문과 추적 Idea를 구분한다. Inbox는 frontmatter 없는 원문이고, 추적 Idea는 Vault Markdown frontmatter의 정규화 필드로 조회 JSON을 만든다. 처리 절차는 [Idea 정리 흐름](IDEA_CURATION.md)에 정리했다.
 
 ## Inbox와 추적 경로
 
@@ -10,7 +10,7 @@ APS Server는 Vault의 Idea Markdown을 원본으로 사용하고, frontmatter�
 01_Idea_Sets/*.md         추적 Idea Set
 ```
 
-APS Server는 요청자가 지정한 경로를 사용하지 않고 고정 `00_Inbox`만 쓴다. pending 조회는 Inbox와 `01_Ideas`를 합치되 출처와 commit 상태를 구분한다. commit 성공 전에는 Inbox 원본을 삭제하지 않는다.
+APS Server는 요청자가 지정한 경로를 사용하지 않고 고정 `00_Inbox`만 쓴다. API로 접수한 파일에는 본문만 저장하고, ID는 파일명에 둔다. 표시·검색·멱등 metadata는 `${APS_DATA_PATH}/ideas/intake.json`에서 관리한다. pending PATCH는 metadata만 바꾸며 원문은 유지한다. pending 조회는 Inbox와 `01_Ideas`를 합치되 출처와 commit 상태를 구분한다. commit 성공 전에는 Inbox 원본을 삭제하지 않는다. 0.2.0에서 생성한 frontmatter Inbox 문서는 처리될 때까지 읽기 호환한다.
 
 ## Idea frontmatter
 
@@ -38,8 +38,8 @@ updated_at: 2026-08-31
 - `idea_set_ids`에는 승인된 Idea set 소속만 기록한다. 유사도 계산으로 만든 후보는 Vault에 자동 기록하지 않는다.
 - `created_at`과 `updated_at`은 ISO 8601 날짜 또는 일시를 사용한다. 조회 JSON의 `updated_at`은 APS가 timezone이 포함된 일시로 정규화한다.
 - 본문과 링크는 사람이 읽는 설명이다. 임베딩과 기본 lexical 검색 입력은 `title + keywords + summary`로 제한한다.
-- Inbox 문서는 `status: inbox`와 `commit_status: pending`으로 응답하며, 아직 commit되지 않은 새 Idea의 수정도 Inbox에만 반영한다.
-- `Idempotency-Key`를 보낸 접수에는 원문 키 대신 `intake_key_hash`와 `intake_request_hash`를 저장한다. 정리 commit 후에도 두 hash를 보존해 같은 ID로 재요청을 처리한다.
+- 추적 문서의 `status`와 metadata는 frontmatter에 저장한다. Inbox 문서는 서버 metadata를 통해 `status: inbox`, `commit_status: pending`으로 응답한다.
+- `Idempotency-Key`를 보낸 접수에는 서버 metadata에 `intake_key_hash`와 `intake_request_hash`를 저장한다. 정리 commit 후에는 두 hash를 추적 문서에도 보존해 같은 ID로 재요청을 처리한다.
 
 ## Idea set frontmatter
 

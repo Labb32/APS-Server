@@ -16,7 +16,7 @@
 
 ### 2. 선택 AI 사서
 
-내부 AgentExecutor와 cron, 또는 외부 AI 큐가 고정 operation 계약으로 Inbox 정리, Idea 중복 후보·Set 구성, 제한된 Project 제안과 Service 현황을 처리한다. Server는 결과 schema와 기준 revision을 확인한 뒤 게시한다. AI가 없거나 장애가 나도 Core 조회와 접수는 계속 동작한다. Project·Service 원본 변경은 승인 흐름 전까지 허용하지 않는다.
+내부 AgentExecutor와 cron, 또는 외부 AI 큐가 고정 operation 계약으로 Inbox 정리, Idea 중복 후보·Set 구성, 제한된 Project 제안과 Service 현황을 처리한다. Server는 결과 schema와 기준 revision을 확인한 뒤 게시한다. AI가 없거나 장애가 나도 Core 조회와 접수는 계속 동작한다. Project·Service 원본 변경은 승인 흐름 전까지 허용하지 않는다. Idea 정리 단계와 쓰기 경계는 [Idea 정리 흐름](IDEA_CURATION.md)에 정의한다.
 
 ### 3. 공식 확장
 

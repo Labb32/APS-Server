@@ -19,3 +19,7 @@
 Provider-neutral AgentExecutor, 고정 task·Tool registry, 구조화 결과 검증, 제한된 Tool loop, timeout·호출·출력 한도와 민감 정보 없는 trace를 도입했다. 공통 operation 경계와 Idea curation의 검증된 commit 흐름도 여기에 포함된다.
 
 유지 원칙은 API가 prompt·provider·model·Tool·경로를 받지 않는 것, Tool이 임의 파일·shell을 실행하지 않는 것, AgentExecutor가 Vault sync·Git commit·게시를 직접 하지 않는 것이다. 현재 설계는 [AI 실행과 Provider](AI_EXECUTION.md)를 따른다.
+
+## 0.2.1 Core beta
+
+Idea JSON/text 접수는 frontmatter 없는 `00_Inbox` 원문으로 변경했다. 표시·검색·멱등 정보는 `${APS_DATA_PATH}/ideas/intake.json`에 분리하고 pending PATCH는 원문을 바꾸지 않는다. 0.2.0 형식의 Inbox 문서는 자동 변환 없이 계속 읽는다. AI와 확장이 없어도 접수·조회·검색·재시작 복구가 동작하는 흐름을 Core beta 기준으로 삼는다.

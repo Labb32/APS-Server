@@ -44,9 +44,11 @@ class OperationHandlers:
         vault: VaultRepository,
         extensions: ExtensionRegistry,
         agent: AgentExecutor | None,
+        ideas: IdeaService,
     ) -> None:
         self.vault = vault
         self.agent = agent
+        self.ideas = ideas
         self.extension_host = ExtensionHost(settings, extensions, vault)
 
     def extension_operation(self, request: CreateJobRequest) -> OperationResult:
@@ -98,7 +100,7 @@ class OperationHandlers:
         if self.agent is None:
             raise OperationError("AI curation is disabled; Inbox entries remain pending", "AI_DISABLED")
         try:
-            service = IdeaService(self.vault)
+            service = self.ideas
             pending = service.pending()
             if pending.ideas:
                 committed = IdeasData.model_validate(load_idea_catalog(self.vault.root))
@@ -146,8 +148,9 @@ def build_operation_registry(
     content_store: ContentStore,
     extensions: ExtensionRegistry,
     agent: AgentExecutor | None,
+    ideas: IdeaService,
 ) -> OperationRegistry:
-    handlers = OperationHandlers(settings, vault, extensions, agent)
+    handlers = OperationHandlers(settings, vault, extensions, agent, ideas)
     ai_configured, _ = provider_status(settings)
     registry = OperationRegistry(ai_enabled=settings.ai_enabled, ai_configured=ai_configured and agent is not None)
     registry.register(OperationSpec(

@@ -60,7 +60,7 @@ class ContentPublication:
 
 
 class ContentStore:
-    def __init__(self, data_path: Path, generator_version: str = "0.2.0") -> None:
+    def __init__(self, data_path: Path, generator_version: str = "0.2.1") -> None:
         self.root = data_path / "content"
         self.projects_path = self.root / "projects"
         for path in (self.root, self.projects_path):

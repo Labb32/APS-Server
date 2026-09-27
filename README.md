@@ -1,6 +1,6 @@
 # APS Server
 
-APS Server는 한 사용자와 한 APS Vault를 연결하는 self-hosted API다. Vault 문서를 원본으로 사용하고, 인증된 조회·Inbox 접수·고정 Job을 제공한다. AI는 선택 사항이다. 현재 버전은 `0.2.0` pre-release이며 [베타 목표](docs/PROJECT_PLAN.md)의 모든 기능이 구현된 상태는 아니다.
+APS Server는 한 사용자와 한 APS Vault를 연결하는 self-hosted API다. Vault 문서를 원본으로 사용하고, 인증된 조회·Inbox 접수·고정 Job을 제공한다. AI는 선택 사항이다. 현재 버전은 `0.2.1` Core beta이며 AI 사서와 공식 확장은 후속 범위다.
 
 ## 빠른 시작
 

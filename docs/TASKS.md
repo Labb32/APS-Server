@@ -11,6 +11,7 @@
 | 003 — Inbox·Idea | 고정 Inbox 접수, pending 수정, 제한된 Scheduler 정리, tracked PATCH 차단 |
 | 004 — 계약 정합성 | API·설정·배포 문서와 OpenAPI 동기화 |
 | 005 — 공통 검색 | 5개 collection 검색, 로컬 색인·hybrid 점수·증분 갱신·fallback |
+| 0.2.1 Core API 마무리 | frontmatter 없는 Inbox 원문, 서버 metadata 분리, 원문 보존 PATCH |
 
 `POST /v1/search`는 AI provider와 `aps-index` 없이 동작한다. 검색 한도와 품질 범위는 [Core 검색](SEARCH.md)을 따른다. 변경의 통합 이력은 [개발 노트](DEVELOPMENT_NOTES.md)에 있다.
 
@@ -18,12 +19,15 @@
 
 ### AI 사서와 실행
 
-- 내부 cron을 통한 Inbox 정리, 중복 후보, Idea Set 구성
+- 원문 Inbox 입력을 유지하면서 `ideas.curate`의 새 분류·본문 추가 규칙 구현
+- 기존 Idea와 append 대상에서 metadata를 보존하고 재시도 중복을 차단
+- 독립 `ideas.sets.curate` Job 및 Scheduler 설정 추가
+- Set ID를 받는 제한된 `projects.propose` Job 추가; 임의 prompt와 Project 원본 쓰기는 금지
 - 외부 AI queue의 제출·상태·취소·결과 계약
-- 제한된 Project 제안과 Service 현황 결과
+- AI 기반 Service 운영 현황 결과
 - 결과 schema와 기준 Vault revision 검증, 재시도·중복·늦은 결과 처리
 
-AI 실행 경계와 provider 설정은 [AI 실행 문서](AI_EXECUTION.md)를 따른다.
+Idea 분류·Job 경계는 [Idea 정리 흐름](IDEA_CURATION.md), provider와 Agent 제한은 [AI 실행 문서](AI_EXECUTION.md)를 따른다.
 
 ### 공식 확장
 

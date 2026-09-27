@@ -1,6 +1,6 @@
 # APS Server API Reference
 
-문서 버전 `0.2.0` · 기준일 `2026-09-25`
+문서 버전 `0.2.1` · 기준일 `2026-09-27`
 
 이 문서는 현재 FastAPI 애플리케이션이 제공하는 실제 client 계약이다. 전체 machine-readable schema는 [aps-api.openapi.json](../specs/aps-api.openapi.json), 제품의 목표 범위는 [PROJECT_PLAN](PROJECT_PLAN.md), 구성 요소 경계는 [ARCHITECTURE](ARCHITECTURE.md)를 참고한다.
 
@@ -411,7 +411,7 @@ Content GET은 Codex나 provider를 실행하지 않는다. Idea 조회는 마�
   "content_type":"ideas",
   "generated_at":"2026-09-01T00:00:03+00:00",
   "vault_commit":"0123456789abcdef0123456789abcdef01234567",
-  "generator_version":"0.2.0",
+  "generator_version":"0.2.1",
   "stale":false,
   "partial_failure":false,
   "sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -581,7 +581,7 @@ Idea 쓰기는 `operator`만 허용한다. 모든 파일명과 Vault 경로는 �
 }
 ```
 
-정규형 입력은 `title` 1~200자와 `summary` 1~2000자를 함께 보내고 `keywords`를 최대 20개/각 1~80자로 보낸다. 또는 이 필드들 대신 `content` 1~10000자만 보낼 수 있다. raw content만 받은 경우 첫 번째 non-blank 줄을 임시 title로, 앞 2000자를 임시 summary로 사용하며 원문 전체는 Markdown 본문에 보존한다. 알 수 없는 field와 requester ID는 거부한다.
+정규형 입력은 `title` 1~200자와 `summary` 1~2000자를 함께 보내고 `keywords`를 최대 20개/각 1~80자로 보낸다. 또는 이 필드들 대신 `content` 1~10000자만 보낼 수 있다. `content`는 frontmatter나 자동 제목 없이 Inbox 파일에 저장한다. 구조화 입력은 제목·요약·키워드를 frontmatter 없는 읽기 쉬운 Markdown 본문으로 기록한다. 표시용 metadata와 멱등 정보는 `${APS_DATA_PATH}/ideas/intake.json`에 분리한다. raw content만 받은 경우 첫 번째 non-blank 줄을 임시 title로, 앞 2000자를 임시 summary로 사용한다. 알 수 없는 field와 requester ID는 거부한다.
 
 성공 `201 Created`:
 
@@ -607,11 +607,11 @@ Idea 쓰기는 `operator`만 허용한다. 모든 파일명과 Vault 경로는 �
 
 `Content-Type: text/plain` 또는 `text/plain; charset=utf-8`로 UTF-8 본문을 보낸다. 최대 40,000바이트, NFC·LF 정규화와 trim 후 1~10,000자이며 제어 문자는 tab과 줄바꿈만 허용한다. 본문은 자유 형식 agent 지시나 Vault 경로로 해석하지 않고 `POST /v1/ideas`의 `content`와 동일한 고정 Inbox 접수로 처리한다. 성공 응답은 같은 `IdeaMutationResponse`, 상태는 `201`이다. 다른 media type은 `415 UNSUPPORTED_MEDIA_TYPE`, 잘못된 UTF-8·빈 내용·초과 길이는 `422 IDEA_TEXT_INVALID` 또는 `413 IDEA_CONTENT_TOO_LARGE`다.
 
-두 POST 모두 선택적 `Idempotency-Key`(8~128자, 영숫자와 `._~-`)를 받는다. 같은 키와 동일한 정규화 요청을 다시 보내면 기존 Idea ID와 현재 상태를 반환한다. 같은 키에 다른 요청을 보내면 `409 IDEMPOTENCY_KEY_REUSED`다. 키의 hash는 Inbox 문서에 저장하고 정리 commit 후에도 tracked Idea에 보존한다. 키가 없으면 각 요청을 새 접수로 처리한다.
+두 POST 모두 선택적 `Idempotency-Key`(8~128자, 영숫자와 `._~-`)를 받는다. 같은 키와 동일한 정규화 요청을 다시 보내면 기존 Idea ID와 현재 상태를 반환한다. 같은 키에 다른 요청을 보내면 `409 IDEMPOTENCY_KEY_REUSED`다. 키와 요청의 hash는 서버 metadata에 저장하고 정리 commit 시 tracked Idea에 보존한다. 키가 없으면 각 요청을 새 접수로 처리한다.
 
 ### `PATCH /v1/ideas/{idea_id}`
 
-`title`, `keywords`, `summary`, `status` 중 하나 이상만 전송한다. pending Idea 수정은 Inbox에 즉시 반영하며 `status`는 `inbox`로 유지해야 한다. tracked Idea에 대한 기존 즉시 commit 동작은 중단했다. 같은 경로의 tracked 수정 요청은 `409 IDEA_TRACKED_UPDATE_DISABLED`를 반환하며 원본을 변경하지 않는다. 추후 proposal·승인 흐름이 마련되면 별도 계약으로 제공한다.
+`title`, `keywords`, `summary`, `status` 중 하나 이상만 전송한다. pending Idea 수정은 표시·검색 metadata에 반영하고 Inbox 원문은 변경하지 않는다. `status`는 `inbox`로 유지해야 한다. tracked Idea에 대한 기존 즉시 commit 동작은 중단했다. 같은 경로의 tracked 수정 요청은 `409 IDEA_TRACKED_UPDATE_DISABLED`를 반환하며 원본을 변경하지 않는다. 추후 proposal·승인 흐름이 마련되면 별도 계약으로 제공한다.
 
 성공은 `200 OK`이고 pending 수정의 `vault_commit`은 `null`이다.
 
