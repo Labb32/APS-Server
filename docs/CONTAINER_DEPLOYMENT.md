@@ -9,6 +9,16 @@ docker compose up -d
 docker compose ps
 ```
 
+## GitHub Container Registry 배포
+
+GitHub의 `Labb32/APS-Server` 저장소에 `v` 접두사 버전 tag를 push하면 GitHub Actions가 `linux/amd64`, `linux/arm64` image를 빌드해 GHCR에 게시한다. 예를 들어 현재 `0.3.0` 릴리스 tag는 다음과 같이 push한다.
+
+```bash
+git push publish v0.3.0
+```
+
+게시 image는 `ghcr.io/labb32/aps-server:0.3.0`, `:0.3`, `:latest`다. `publish`는 GitHub remote 이름이며, 안정 릴리스 tag만 게시한다.
+
 필수 값:
 
 ```dotenv
