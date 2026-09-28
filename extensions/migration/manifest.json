@@ -1,0 +1,16 @@
+{
+  "id": "migration",
+  "version": "0.1.0",
+  "type": "vault-transfer",
+  "official": true,
+  "aps_api": "1",
+  "entrypoint": "entrypoint.py",
+  "resources": [],
+  "capabilities": ["vault_export", "vault_import"],
+  "operations": [],
+  "schedules": [],
+  "agent_tasks": [],
+  "vault_access": "proposal-write",
+  "network": "none",
+  "activation": "restart"
+}

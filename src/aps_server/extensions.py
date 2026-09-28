@@ -69,7 +69,7 @@ class ExtensionManifest(BaseModel):
 
     id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,63}$")
     version: str = Field(pattern=r"^[0-9]+\.[0-9]+\.[0-9]+$")
-    type: Literal["content-provider"]
+    type: Literal["content-provider", "vault-transfer"]
     official: Literal[True]
     aps_api: Literal["1"]
     entrypoint: str
@@ -78,7 +78,7 @@ class ExtensionManifest(BaseModel):
     operations: list[OperationName]
     schedules: list[ExtensionSchedule] = Field(default_factory=list)
     agent_tasks: list[ExtensionAgentTask] = Field(default_factory=list)
-    vault_access: Literal["read-only"]
+    vault_access: Literal["read-only", "proposal-write"]
     network: Literal["none", "ai-provider-only"]
     activation: Literal["restart"]
 

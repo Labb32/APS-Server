@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     vault_template_path: Path = Path("/opt/aps/vault-template")
     data_path: Path = Path("data")
     html_templates_path: Path | None = None
+    migration_max_archive_bytes: int = Field(default=256 * 1024 * 1024, ge=1024, le=2 * 1024 * 1024 * 1024)
     extensions_path: Path = Path("data/extensions")
     official_extensions_path: Path = Path("extensions")
     initial_extensions: str = ""

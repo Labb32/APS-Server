@@ -68,6 +68,7 @@ Project·Service 조회는 `vault.content.refresh`가 성공한 뒤 사용할 �
 - [API 사용](docs/API_REFERENCE.md)
 - [Idea 문서](docs/IDEA_DOCUMENT_FORMAT.md)
 - [선택형 AI](docs/AI_EXECUTION.md)
+- [Migration 확장](extensions/migration/README.md)
 - [보안](SECURITY.md)
 - [OpenAPI](specs/aps-api.openapi.json)
 

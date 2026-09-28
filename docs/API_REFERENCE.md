@@ -68,6 +68,20 @@ Briefing 확장을 설치하고 AI를 활성화하면 다음 결과를 사용할
 
 기본 응답은 JSON이며 `?format=html`로 HTML을 요청할 수 있다.
 
+## Migration 확장
+
+Migration 확장을 설치하면 operator token으로 Vault archive를 관리할 수 있다.
+
+| Method | Path | 설명 |
+|---|---|---|
+| POST | `/v1/migration/exports` | Vault ZIP 생성 |
+| GET | `/v1/migration/exports/{export_id}` | Vault ZIP 다운로드 |
+| POST | `/v1/migration/imports` | ZIP 업로드 및 proposal 생성 |
+| GET | `/v1/migration/imports/{proposal_id}` | Proposal 확인 |
+| POST | `/v1/migration/imports/{proposal_id}/apply` | Proposal 명시적 적용 |
+
+업로드 본문은 `application/zip`이며, 적용 요청의 `confirmation` 값은 `proposal_id`와 같아야 한다.
+
 ## Job
 
 | Method | Path | 설명 |

@@ -25,6 +25,7 @@ from .idea_api import build_idea_router
 from .idea_service import IdeaService
 from .job_api import build_job_router
 from .models import ErrorResponse
+from .migration_api import build_migration_router
 from .operations import build_operation_registry
 from .runner import JobRunner
 from .scheduler import Scheduler
@@ -174,6 +175,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
     )
     app.include_router(build_search_router(search_index, content_reader))
+    app.include_router(build_migration_router(settings, vault, extensions, authenticate))
     app.include_router(
         build_job_router(
             settings.data_path,
@@ -230,6 +232,8 @@ def _error_responses() -> dict[int, dict[str, object]]:
         404: "Resource or content not found",
         409: "State or idempotency conflict",
         410: "Artifact expired",
+        413: "Request content too large",
+        415: "Unsupported media type",
         422: "Request validation failed",
         500: "Invalid content or internal error",
         503: "Dependency not ready",
