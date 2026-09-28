@@ -39,6 +39,7 @@ CORE_DEFAULT_SCHEDULES = ScheduleConfig.model_validate(
             {
                 "schedule_id": "idea-curate",
                 "cron": "15 */6 * * *",
+                "enabled": False,
                 "request": {"operation": "ideas.curate", "input": {}, "context": {}},
             },
             {

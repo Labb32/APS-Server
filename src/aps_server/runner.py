@@ -147,9 +147,10 @@ class JobRunner:
                         }
                         for publication in publications
                     ],
+                    **operation_result.result_metadata,
                 }
             else:
-                stored.public.result = operation_result.output
+                stored.public.result = operation_result.result_metadata or operation_result.output
             stored.public.status = JobStatus.SUCCEEDED
         except Exception as error:  # Worker boundary: isolate one failed Job from the process.
             stored.public.status = JobStatus.FAILED

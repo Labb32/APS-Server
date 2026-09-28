@@ -117,7 +117,6 @@ class OperationHandlers:
                     "ideas.curate-plan",
                     {
                         "pending_ideas": [item.model_dump(mode="json") for item in pending.ideas],
-                        "pending_sets": [item.model_dump(mode="json") for item in pending.idea_sets],
                         "existing_candidates": [
                             item.model_dump(mode="json")
                             for item in committed.ideas
@@ -131,10 +130,14 @@ class OperationHandlers:
                 )
                 if not isinstance(execution.output, IdeaCurationPlan):
                     raise OperationError("Idea Agent returned an unexpected result", "IDEA_CURATION_INVALID")
-                output = service.curate(execution.output)
+                output, summary = service.curate(execution.output)
             else:
-                output = service.curate()
-            return OperationResult(output=output, vault_commit=self.vault.commit())
+                output, summary = service.curate()
+            return OperationResult(
+                output=output,
+                vault_commit=self.vault.commit(),
+                result_metadata={"curation": summary},
+            )
         except AgentExecutionError as error:
             raise OperationError("Idea curation Agent failed", error.code) from error
         except (OSError, IdeaCatalogError, IdeaServiceError) as error:

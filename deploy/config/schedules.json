@@ -12,7 +12,7 @@
       "schedule_id": "idea-curate",
       "cron": "15 */6 * * *",
       "timezone": "Asia/Seoul",
-      "enabled": true,
+      "enabled": false,
       "request": {"operation": "ideas.curate", "input": {}, "context": {}}
     },
     {

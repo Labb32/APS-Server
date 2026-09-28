@@ -57,7 +57,7 @@ Job 생성 형식:
 }
 ```
 
-Core operation은 `vault.content.refresh`, `vault.audit`, `ideas.index.refresh`다. `ideas.curate`는 AI가 설정된 경우에만 실행된다. Job 상태는 `queued`, `syncing`, `running`, `validating`, `publishing`, `succeeded`, `failed`, `cancelled` 중 하나다.
+Core operation은 `vault.content.refresh`, `vault.audit`, `ideas.index.refresh`다. `ideas.curate`는 AI provider를 설정하고 schedule을 명시적으로 활성화한 경우에만 실행된다. 기본 schedule은 꺼져 있다. Curate 결과에는 생성, 기존 Idea 추가, 보류 개수와 보류 이유가 포함된다. Job 상태는 `queued`, `syncing`, `running`, `validating`, `publishing`, `succeeded`, `failed`, `cancelled` 중 하나다.
 
 같은 요청의 중복 생성을 막으려면 8~128자의 `Idempotency-Key`를 보낸다. 같은 키를 다른 요청에 사용하면 `409`가 반환된다.
 

@@ -39,6 +39,7 @@ class OperationResult:
     output: dict[str, Any]
     vault_commit: str | None = None
     artifacts: tuple[Any, ...] = field(default_factory=tuple)
+    result_metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

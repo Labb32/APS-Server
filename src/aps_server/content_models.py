@@ -310,8 +310,8 @@ class IdeaSetCreateRequest(ContractModel):
         return IdeaCreateRequest.normalize_keywords(value)
 
 
-class NormalizedIdea(ContractModel):
-    source_idea_id: IdeaId
+class NewIdeaGroup(ContractModel):
+    source_idea_ids: list[IdeaId] = Field(min_length=1, max_length=20)
     title: str = Field(min_length=1, max_length=200)
     keywords: list[IdeaKeyword] = Field(default_factory=list, max_length=20)
     summary: str = Field(min_length=1, max_length=2000)
@@ -321,27 +321,7 @@ class NormalizedIdea(ContractModel):
     def non_blank_text(cls, value: str) -> str:
         value = value.strip()
         if not value:
-            raise ValueError("curated text must not be blank")
-        return value
-
-    @field_validator("keywords")
-    @classmethod
-    def unique_keywords(cls, values: list[str]) -> list[str]:
-        return list(dict.fromkeys(value.strip() for value in values if value.strip()))
-
-
-class IdeaMergeCandidate(ContractModel):
-    source_idea_ids: list[IdeaId] = Field(min_length=2, max_length=20)
-    title: str = Field(min_length=1, max_length=200)
-    keywords: list[IdeaKeyword] = Field(default_factory=list, max_length=20)
-    summary: str = Field(min_length=1, max_length=2000)
-
-    @field_validator("title", "summary")
-    @classmethod
-    def non_blank_text(cls, value: str) -> str:
-        value = value.strip()
-        if not value:
-            raise ValueError("merge text must not be blank")
+            raise ValueError("new Idea text must not be blank")
         return value
 
     @field_validator("keywords")
@@ -357,37 +337,42 @@ class IdeaMergeCandidate(ContractModel):
         return value
 
 
-class IdeaSetCandidate(ContractModel):
-    title: str = Field(min_length=1, max_length=200)
-    keywords: list[IdeaKeyword] = Field(default_factory=list, max_length=20)
-    summary: str = Field(min_length=1, max_length=2000)
-    member_idea_ids: list[IdeaId] = Field(min_length=1, max_length=100)
+class IdeaAppendGroup(ContractModel):
+    source_idea_ids: list[IdeaId] = Field(min_length=1, max_length=20)
+    target_idea_id: IdeaId
 
-    @field_validator("title", "summary")
+    @field_validator("source_idea_ids")
     @classmethod
-    def non_blank_text(cls, value: str) -> str:
-        value = value.strip()
-        if not value:
-            raise ValueError("Idea Set text must not be blank")
+    def unique_sources(cls, value: list[str]) -> list[str]:
+        if len(set(value)) != len(value):
+            raise ValueError("source_idea_ids must be unique")
         return value
 
-    @field_validator("keywords")
-    @classmethod
-    def unique_keywords(cls, values: list[str]) -> list[str]:
-        return list(dict.fromkeys(value.strip() for value in values if value.strip()))
 
-    @field_validator("member_idea_ids")
+class DeferredIdeaGroup(ContractModel):
+    source_idea_ids: list[IdeaId] = Field(min_length=1, max_length=20)
+    reason: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("source_idea_ids")
     @classmethod
-    def unique_members(cls, value: list[str]) -> list[str]:
+    def unique_sources(cls, value: list[str]) -> list[str]:
         if len(set(value)) != len(value):
-            raise ValueError("member_idea_ids must be unique")
+            raise ValueError("source_idea_ids must be unique")
+        return value
+
+    @field_validator("reason")
+    @classmethod
+    def non_blank_reason(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("deferred reason must not be blank")
         return value
 
 
 class IdeaCurationPlan(ContractModel):
-    normalized_ideas: list[NormalizedIdea] = Field(default_factory=list, max_length=100)
-    merge_candidates: list[IdeaMergeCandidate] = Field(default_factory=list, max_length=20)
-    set_candidates: list[IdeaSetCandidate] = Field(default_factory=list, max_length=20)
+    new_ideas: list[NewIdeaGroup] = Field(default_factory=list, max_length=100)
+    append_candidates: list[IdeaAppendGroup] = Field(default_factory=list, max_length=100)
+    deferred_ideas: list[DeferredIdeaGroup] = Field(default_factory=list, max_length=100)
     warnings: list[str] = Field(default_factory=list, max_length=20)
 
 

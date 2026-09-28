@@ -11,11 +11,12 @@ def idea_curation_task(max_input_chars: int, timeout_seconds: int) -> AgentTaskS
         task_id="ideas.curate-plan",
         mode="workflow",
         instructions=(
-            "Organize pending APS Ideas using only the supplied records. Normalize each pending Idea title, "
-            "keywords and summary without changing its source ID or meaning. Suggest merge candidates only "
-            "for strongly overlapping Ideas and Idea Set candidates only for a coherent reusable group. "
-            "Every merge or Set must include at least one pending Idea. Do not invent source IDs, paths, "
-            "project facts or implementation details. Return the complete structured curation plan."
+            "Organize pending APS Ideas using only the supplied records. Assign every pending source ID "
+            "exactly once to new_ideas, append_candidates or deferred_ideas. Combine strongly overlapping "
+            "pending Ideas into one new Idea. Append a pending Idea only when an existing candidate clearly "
+            "represents the same Idea. Defer uncertain records with a short reason. Preserve the source "
+            "meaning and do not invent IDs, paths, project facts or implementation details. Do not create "
+            "Idea Sets. Return the complete structured curation plan."
         ),
         output_model=IdeaCurationPlan,
         max_steps=1,
