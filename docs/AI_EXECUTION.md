@@ -1,10 +1,10 @@
-# 선택형 AI 설정
+# 선택형 AI
 
-AI 기능은 기본으로 꺼져 있다. AI 없이 Core API, Inbox 접수, 조회와 검색을 사용할 수 있다.
+AI는 기본으로 꺼져 있다. AI 없이 조회, 검색, Inbox 접수와 일반 Job을 사용할 수 있다.
 
-## 활성화
+## 설정
 
-provider를 설정한 뒤 필요한 schedule을 별도로 켠다.
+OpenAI:
 
 ```dotenv
 APS_AI_PROVIDER=openai
@@ -12,9 +12,24 @@ APS_AI_MODEL=<model>
 APS_AI_API_KEY=<secret>
 ```
 
-OpenAI 호환 서비스는 `APS_AI_PROVIDER=openai-compatible`과 `APS_AI_BASE_URL`을, 외부 Agent HTTP 서비스는 `APS_AI_PROVIDER=agent-http`와 `APS_AI_BASE_URL`을 사용한다.
+OpenAI 호환 API:
 
-`idea-curate` schedule의 기본값은 `enabled: false`다. `deploy/config/schedule-overrides.json`에서 명시적으로 활성화한다.
+```dotenv
+APS_AI_PROVIDER=openai-compatible
+APS_AI_BASE_URL=https://provider.example/v1
+APS_AI_MODEL=<model>
+APS_AI_API_KEY=<secret>
+```
+
+APS Agent HTTP 계약:
+
+```dotenv
+APS_AI_PROVIDER=agent-http
+APS_AI_BASE_URL=https://agent.example
+APS_AI_API_KEY=<secret>
+```
+
+`idea-curate` schedule은 기본 비활성이다. `/config/schedule-overrides.json`에서 켠다.
 
 ```json
 {
@@ -25,16 +40,8 @@ OpenAI 호환 서비스는 `APS_AI_PROVIDER=openai-compatible`과 `APS_AI_BASE_U
 }
 ```
 
-설정 변경 후 서버를 다시 시작하고 `GET /v1/operations`와 `GET /v1/scheduler`에서 상태를 확인한다.
+재시작 후 `GET /v1/operations`와 `GET /v1/scheduler`에서 상태를 확인한다.
 
-내장 cron이 기본이다. 외부 Scheduler CLI를 선택해도 AI operation의 활성 조건과 결과 검증은 동일하며, 외부 Scheduler는 `aps schedule-run`으로 등록된 schedule만 실행한다.
-
-## 실행 경계
-
-- AI는 고정 task의 구조화된 계획만 반환한다.
-- Core가 ID, 대상, 전체 pending 배정과 Vault 상태를 검증한다.
-- Core만 tracked 문서를 쓰고 Git commit을 만든다.
-- 실패하거나 보류된 Inbox 원문은 유지한다.
-- API 요청으로 prompt, model, 도구, Vault 경로를 지정할 수 없다.
+AI는 구조화된 계획만 반환하며 Core가 ID, 대상과 Vault 상태를 검증하고 commit한다. 실패하거나 보류된 Inbox 원문은 유지된다. API 요청으로 prompt, model, 도구 또는 Vault 경로를 지정할 수 없다.
 
 credential은 환경 변수나 secret mount에만 저장한다.
