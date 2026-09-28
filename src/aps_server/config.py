@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     job_queue_size: int = Field(default=100, ge=1, le=10000)
     job_timeout_seconds: int = Field(default=900, ge=30, le=7200)
     scheduler_enabled: bool = True
+    scheduler_backend: Literal["internal", "external-cli"] = "internal"
+    external_scheduler_cli: Path | None = None
+    external_scheduler_timeout_seconds: int = Field(default=30, ge=1, le=300)
     scheduler_timezone: str = "Asia/Seoul"
     scheduler_poll_seconds: int = Field(default=30, ge=1, le=300)
     scheduler_misfire_lookback_minutes: int = Field(default=1440, ge=1, le=10080)
@@ -102,6 +105,8 @@ class Settings(BaseSettings):
             raise ValueError("APS API tokens must be distinct")
         if self.vault_push_after_commit and self.vault_mode == "local":
             raise ValueError("APS_VAULT_PUSH_AFTER_COMMIT requires git or mounted Vault mode")
+        if self.scheduler_enabled and self.scheduler_backend == "external-cli" and self.external_scheduler_cli is None:
+            raise ValueError("APS_EXTERNAL_SCHEDULER_CLI is required for the external-cli Scheduler backend")
         return self
 
     @property

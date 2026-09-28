@@ -6307,6 +6307,38 @@
             "type": "boolean",
             "title": "Running"
           },
+          "backend": {
+            "type": "string",
+            "enum": [
+              "internal",
+              "external-cli"
+            ],
+            "title": "Backend",
+            "default": "internal"
+          },
+          "external_synced_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Synced At"
+          },
+          "external_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Error"
+          },
           "last_tick_at": {
             "anyOf": [
               {

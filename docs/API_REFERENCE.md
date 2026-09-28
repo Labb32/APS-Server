@@ -38,6 +38,8 @@
 
 AI가 `none`이면 Core API는 계속 동작하고 AI가 필요한 operation은 `enabled: false`로 표시된다.
 
+Scheduler 응답의 `backend`는 `internal` 또는 `external-cli`다. 외부 CLI 적용 실패는 `external_error`에서 확인한다.
+
 ## Job
 
 | Method | Path | 설명 |

@@ -8,7 +8,7 @@ never embeds a command or executable.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -180,6 +180,9 @@ class ScheduleView(BaseModel):
 class SchedulerStatus(BaseModel):
     enabled: bool
     running: bool
+    backend: Literal["internal", "external-cli"] = "internal"
+    external_synced_at: datetime | None = None
+    external_error: str | None = None
     last_tick_at: datetime | None
     queue: dict[str, int]
     schedules: list[ScheduleView]

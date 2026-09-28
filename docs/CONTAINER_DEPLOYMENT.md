@@ -76,6 +76,23 @@ docker compose restart aps-server
 
 Scheduler 설정은 기본 `/config/schedules.json`, override는 `/config/schedule-overrides.json`에서 읽는다. 형식은 [기본 schedule](../deploy/config/schedules.json)과 [override 예시](../deploy/config/schedule-overrides.json)를 참고하고 변경 후 container를 재시작한다.
 
+### 외부 Scheduler CLI
+
+기본 backend는 `internal`이다. 외부 Scheduler를 사용할 때만 다음 값을 설정한다.
+
+```dotenv
+APS_SCHEDULER_BACKEND=external-cli
+APS_EXTERNAL_SCHEDULER_CLI=/config/bin/scheduler-adapter
+```
+
+CLI는 APS 시작 시 다음 고정 형식으로 호출된다.
+
+```text
+/config/bin/scheduler-adapter apply --manifest /data/scheduler/external-manifest.json
+```
+
+adapter는 manifest의 cron과 timezone을 외부 Scheduler에 반영한다. 각 실행 명령의 `{scheduled_for}`를 원래 실행 시각의 ISO 8601 값으로 바꿔 호출해야 한다. 실행 환경에는 `APS_API_URL`과 scheduler 권한의 `APS_API_TOKEN`을 별도로 설정한다. manifest와 API에는 token이나 임의 shell 명령을 저장하지 않는다.
+
 ## 외부 접근
 
 기본 `127.0.0.1` bind를 유지하고 TLS reverse proxy나 개인 VPN을 사용한다. proxy에는 요청 크기 제한과 rate limit을 설정하고 API token을 URL이나 access log에 넣지 않는다.

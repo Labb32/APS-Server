@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from .atomic import write_text
 from .config import Settings
 from .extensions import CORE_OPERATIONS, ExtensionRegistry
+from .external_scheduler import ExternalSchedulerCLI
 from .models import JobStatus
 from .runner import JobRunner
 from .runtime import OperationRegistry, OperationRegistryError
@@ -84,9 +85,27 @@ class Scheduler:
         self._lock = threading.RLock()
         self._stopping = threading.Event()
         self._thread: threading.Thread | None = None
+        self._external_synced_at: datetime | None = None
+        self._external_error: str | None = None
+        self._external_attempted = False
 
     def start(self) -> None:
-        if not self.settings.scheduler_enabled or self._thread is not None:
+        if not self.settings.scheduler_enabled or self._thread is not None or self._external_attempted:
+            return
+        if self.settings.scheduler_backend == "external-cli":
+            self._external_attempted = True
+            try:
+                cli_path = self.settings.external_scheduler_cli
+                if cli_path is None:
+                    raise ValueError("external Scheduler CLI is not configured")
+                self._external_synced_at = ExternalSchedulerCLI(
+                    cli_path,
+                    self.settings.data_path,
+                    self.settings.external_scheduler_timeout_seconds,
+                ).apply(self.config.schedules, self.settings.scheduler_timezone)
+                self._external_error = None
+            except Exception as error:
+                self._external_error = str(error)
             return
         self._thread = threading.Thread(target=self._loop, name="aps-scheduler", daemon=True)
         self._thread.start()
@@ -113,7 +132,14 @@ class Scheduler:
                 ))
             return SchedulerStatus(
                 enabled=self.settings.scheduler_enabled,
-                running=self._thread is not None and self._thread.is_alive(),
+                running=(
+                    self._external_error is None and self._external_synced_at is not None
+                    if self.settings.scheduler_backend == "external-cli"
+                    else self._thread is not None and self._thread.is_alive()
+                ),
+                backend=self.settings.scheduler_backend,
+                external_synced_at=self._external_synced_at,
+                external_error=self._external_error,
                 last_tick_at=self.state.last_tick_at,
                 queue=self.runner.status(),
                 schedules=views,

@@ -27,6 +27,8 @@ OpenAI 호환 서비스는 `APS_AI_PROVIDER=openai-compatible`과 `APS_AI_BASE_U
 
 설정 변경 후 서버를 다시 시작하고 `GET /v1/operations`와 `GET /v1/scheduler`에서 상태를 확인한다.
 
+내장 cron이 기본이다. 외부 Scheduler CLI를 선택해도 AI operation의 활성 조건과 결과 검증은 동일하며, 외부 Scheduler는 `aps schedule-run`으로 등록된 schedule만 실행한다.
+
 ## 실행 경계
 
 - AI는 고정 task의 구조화된 계획만 반환한다.
