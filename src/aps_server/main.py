@@ -37,7 +37,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings()
     job_store = JobStore(settings.data_path)
     content_store = ContentStore(settings.data_path)
-    html_renderer = HTMLRenderer()
+    html_renderer = HTMLRenderer(settings.html_templates_path)
     vault = VaultRepository(settings.vault_path, push_after_commit=settings.vault_push_after_commit)
     idea_service = IdeaService(vault, settings.data_path)
     search_index = DocumentSearchIndex(settings.data_path, content_store, idea_service)

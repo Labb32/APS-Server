@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     vault_push_after_commit: bool = False
     vault_template_path: Path = Path("/opt/aps/vault-template")
     data_path: Path = Path("data")
+    html_templates_path: Path | None = None
     extensions_path: Path = Path("data/extensions")
     official_extensions_path: Path = Path("extensions")
     initial_extensions: str = ""

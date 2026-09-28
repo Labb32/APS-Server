@@ -24,10 +24,40 @@ from .content_models import (
 )
 
 
+MAX_TEMPLATE_BYTES = 512 * 1024
+
+
 class HTMLRenderer:
-    def __init__(self) -> None:
-        self.templates = Path(__file__).parent / "templates"
-        self.css = (self.templates / "content.css").read_text(encoding="utf-8")
+    def __init__(self, custom_templates_path: Path | None = None) -> None:
+        self.default_templates_path = (Path(__file__).parent / "templates").resolve()
+        self.custom_templates_path = custom_templates_path.resolve() if custom_templates_path else None
+        if self.custom_templates_path is not None and not self.custom_templates_path.is_dir():
+            raise ValueError(f"HTML template directory does not exist: {self.custom_templates_path}")
+        self.css = self._asset("content.css")
+
+    def _asset(self, filename: str) -> str:
+        if Path(filename).name != filename:
+            raise ValueError("HTML template filename is invalid")
+        candidates = []
+        if self.custom_templates_path is not None:
+            candidates.append(self.custom_templates_path / filename)
+        candidates.append(self.default_templates_path / filename)
+        path = next((candidate for candidate in candidates if candidate.is_file()), None)
+        if path is None:
+            raise ValueError(f"HTML template is missing: {filename}")
+        resolved = path.resolve()
+        root = (
+            self.custom_templates_path
+            if self.custom_templates_path is not None and path.parent == self.custom_templates_path
+            else self.default_templates_path
+        )
+        try:
+            resolved.relative_to(root)
+        except ValueError as error:
+            raise ValueError(f"HTML template escapes its directory: {filename}") from error
+        if resolved.stat().st_size > MAX_TEMPLATE_BYTES:
+            raise ValueError(f"HTML template exceeds the size limit: {filename}")
+        return resolved.read_text(encoding="utf-8")
 
     @staticmethod
     def _text(value: object | None) -> str:
@@ -128,7 +158,7 @@ class HTMLRenderer:
         return self._idea_page(response, idea_set.title, body)
 
     def _render(self, filename: str, values: dict[str, str], raw: set[str]) -> str:
-        document = (self.templates / filename).read_text(encoding="utf-8")
+        document = self._asset(filename)
         missing = set(re.findall(r"\{\{([A-Z_]+)\}\}", document)) - values.keys()
         if missing:
             raise ValueError(f"unresolved HTML template placeholder in {filename}: {', '.join(sorted(missing))}")

@@ -55,6 +55,16 @@ APS_VAULT_MOUNT=/srv/aps-vault
 | `/git-auth` | Git 인증 정보 |
 | `/config` | schedule 설정 |
 
+## HTML 템플릿
+
+기본 HTML을 수정하려면 필요한 파일만 호스트 디렉터리에 복사하고 해당 디렉터리를 `/config/templates`에 마운트한다.
+
+```dotenv
+APS_HTML_TEMPLATES_PATH=/config/templates
+```
+
+사용자 파일이 없는 경우 서버의 기본 템플릿을 사용한다. 변경 후 container를 다시 시작한다.
+
 백업할 때 `/vault`와 `/data`를 함께 보관한다. `docker compose down -v`는 저장 volume을 삭제하므로 복구 절차에서 사용하지 않는다.
 
 ## Scheduler

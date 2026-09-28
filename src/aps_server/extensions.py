@@ -327,24 +327,33 @@ class OfficialExtensionInstaller:
             raise ValueError("installed extension path is invalid") from error
         if target.exists():
             current = load_manifest(target)
-            return ExtensionInfo(
-                extension_id=current.id,
-                version=current.version,
-                installed=True,
-                active=True,
-                operations=current.operations,
-                schedules=[item.schedule_id for item in current.schedules],
-                restart_required=False,
-            )
+            if current.version == manifest.version:
+                return ExtensionInfo(
+                    extension_id=current.id,
+                    version=current.version,
+                    installed=True,
+                    active=True,
+                    operations=current.operations,
+                    schedules=[item.schedule_id for item in current.schedules],
+                    restart_required=False,
+                )
         temporary = self.installed_root / f".{extension_id}-{secrets.token_hex(6)}.tmp"
+        backup = self.installed_root / f".{extension_id}-{secrets.token_hex(6)}.bak"
         try:
             shutil.copytree(source, temporary)
             load_manifest(temporary, expected_id=extension_id)
+            if target.exists():
+                target.replace(backup)
             temporary.replace(target)
         except Exception:
             if temporary.is_dir():
                 shutil.rmtree(temporary)
+            if backup.is_dir() and not target.exists():
+                backup.replace(target)
             raise
+        finally:
+            if backup.is_dir():
+                shutil.rmtree(backup)
         return ExtensionInfo(
             extension_id=manifest.id,
             version=manifest.version,

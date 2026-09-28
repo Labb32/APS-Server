@@ -1,6 +1,6 @@
 {
   "id": "briefing",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "content-provider",
   "official": true,
   "aps_api": "1",

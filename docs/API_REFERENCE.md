@@ -58,6 +58,16 @@ JSON 접수 예:
 
 조회 API는 저장된 결과만 읽는다. 최신 Vault 내용을 반영하려면 `vault.content.refresh` Job을 실행한다.
 
+Briefing 확장을 설치하고 AI를 활성화하면 다음 결과를 사용할 수 있다.
+
+| Method | Path | 설명 |
+|---|---|---|
+| GET | `/v1/content/briefing/daily` | 일일 briefing |
+| GET | `/v1/content/projects/{project_id}/briefing` | Project briefing |
+| GET | `/v1/content/services/maintenance` | Service 유지보수 현황 |
+
+기본 응답은 JSON이며 `?format=html`로 HTML을 요청할 수 있다.
+
 ## Job
 
 | Method | Path | 설명 |

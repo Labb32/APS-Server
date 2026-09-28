@@ -228,6 +228,7 @@ def build_operation_registry(
             request_model=ServiceMaintenanceDueJobRequest,
             handler=handlers.extension_operation,
             publisher=content_store.prepare_service,
+            requires_ai=True,
         ),
     }
     for name, owner in extensions.operation_owners.items():
