@@ -11,13 +11,31 @@ docker compose ps
 
 ## GitHub Container Registry 배포
 
-GitHub의 `Labb32/APS-Server` 저장소에 `v` 접두사 버전 tag를 push하면 GitHub Actions가 `linux/amd64`, `linux/arm64` image를 빌드해 GHCR에 게시한다. 예를 들어 현재 `0.3.0` 릴리스 tag는 다음과 같이 push한다.
+`pyproject.toml`과 `aps_server.__version__`의 버전이 같도록 변경한 뒤 GitHub의 `Labb32/APS-Server` 저장소에 tag를 push한다. 현재 버전은 `0.3.0`이다. GitHub remote 이름은 `publish`로 설정되어 있다.
 
 ```bash
+git status
+git push publish main
+git tag -a v0.3.0 -m "APS Server 0.3.0"
+git show v0.3.0 --no-patch
 git push publish v0.3.0
 ```
 
-게시 image는 `ghcr.io/labb32/aps-server:0.3.0`, `:0.3`, `:latest`다. `publish`는 GitHub remote 이름이며, 안정 릴리스 tag만 게시한다.
+Tag push가 `.github/workflows/publish-container.yml`을 실행한다. GitHub 저장소의 **Actions → Publish container**에서 빌드 결과를 확인한다. 성공하면 `linux/amd64`, `linux/arm64` image가 다음 tag로 게시된다.
+
+```text
+ghcr.io/labb32/aps-server:0.3.0
+ghcr.io/labb32/aps-server:0.3
+ghcr.io/labb32/aps-server:latest
+```
+
+게시된 manifest 확인:
+
+```bash
+docker buildx imagetools inspect ghcr.io/labb32/aps-server:0.3.0
+```
+
+Tag는 안정 버전 `vX.Y.Z`만 사용한다. GHCR package는 최초 게시 후 기본 비공개이므로 공개 배포 시 package 설정에서 visibility를 Public으로 바꾼다. GitHub Actions는 GitHub 문서의 `GITHUB_TOKEN` 및 `packages: write` 방식으로 인증한다.
 
 필수 값:
 
