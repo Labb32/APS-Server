@@ -11,6 +11,7 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
+from . import __version__
 from .canonical import canonical_checksum, canonical_json_bytes
 from .content_models import (
     ContentStatusItem,
@@ -60,7 +61,7 @@ class ContentPublication:
 
 
 class ContentStore:
-    def __init__(self, data_path: Path, generator_version: str = "0.2.1") -> None:
+    def __init__(self, data_path: Path, generator_version: str = __version__) -> None:
         self.root = data_path / "content"
         self.projects_path = self.root / "projects"
         for path in (self.root, self.projects_path):

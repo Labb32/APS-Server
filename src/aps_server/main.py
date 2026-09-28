@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from . import __version__
 from .agent import build_agent_executor
 from .agent.providers import provider_status
 from .api_support import ContentAPIError
@@ -69,7 +70,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(
         title="APS Content and Automation API",
-        version="0.2.1",
+        version=__version__,
         lifespan=lifespan,
         responses=_error_responses(),
     )
