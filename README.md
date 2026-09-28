@@ -56,6 +56,18 @@ curl -X POST http://127.0.0.1:8080/v1/jobs \
 
 Project·Service 조회는 `vault.content.refresh`가 성공한 뒤 사용할 수 있다. HTML을 지원하는 조회 API에는 `?format=html`을 붙인다.
 
+## 확장 설치
+
+기본 container는 Core API만 활성화한다. 공식 확장은 이미지에 포함되지만 설치 전에는 operation, schedule과 전용 API를 사용할 수 없다.
+
+```bash
+docker compose exec aps-server aps extensions install briefing
+docker compose exec aps-server aps extensions install migration
+docker compose restart aps-server
+```
+
+`APS_INITIAL_EXTENSIONS=briefing,migration`을 설정하면 container 최초 시작 시 설치할 수도 있다.
+
 ## 권한
 
 - `viewer`: 문서와 결과 조회

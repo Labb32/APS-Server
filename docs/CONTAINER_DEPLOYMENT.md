@@ -19,6 +19,16 @@ APS_SCHEDULER_TOKEN=<다른 32자 이상 token>
 
 기본 설정은 localhost 공개, local Vault, 내장 Scheduler, AI 비활성이다.
 
+공식 확장 파일은 image에 포함되지만 기본값에서는 설치되지 않는다. 설치할 확장은 CLI로 추가하고 container를 다시 시작한다.
+
+```bash
+docker compose exec aps-server aps extensions install migration
+docker compose exec aps-server aps extensions install briefing
+docker compose restart aps-server
+```
+
+새 volume을 처음 구성할 때 자동 설치하려면 `APS_INITIAL_EXTENSIONS=briefing,migration`을 설정한다.
+
 ## Vault 연결
 
 내장 volume:

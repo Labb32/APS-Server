@@ -165,7 +165,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         return role
 
-    app.include_router(build_content_router(content_store, html_renderer, content_reader))
+    app.include_router(build_content_router(content_store, html_renderer, extensions, content_reader))
     app.include_router(
         build_idea_router(
             content_store,

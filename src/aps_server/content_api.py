@@ -19,17 +19,28 @@ from .content_models import (
     VaultDocumentsResponse,
 )
 from .content_store import ContentStore
+from .extensions import ExtensionRegistry
 from .html_renderer import HTMLRenderer
 
 
 def build_content_router(
     content_store: ContentStore,
     html_renderer: HTMLRenderer,
+    extensions: ExtensionRegistry,
     content_reader: Callable[..., str],
 ) -> APIRouter:
     """Build content routes with application-owned authentication dependencies."""
 
     router = APIRouter()
+
+    def briefing_reader(role: str = Depends(content_reader)) -> str:
+        if not extensions.is_installed("briefing"):
+            raise ContentAPIError(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                "EXTENSION_NOT_READY",
+                "Briefing extension is not installed",
+            )
+        return role
 
     @router.get("/v1/content/vault", response_model=VaultDocumentsResponse, responses=HTML_RESPONSE)
     def get_vault_documents(
@@ -100,7 +111,7 @@ def build_content_router(
 
     @router.get("/v1/content/briefing/daily", response_model=DailyBriefingResponse, responses=HTML_RESPONSE)
     def get_daily_briefing(
-        _: str = Depends(content_reader),
+        _: str = Depends(briefing_reader),
         format: Literal["json", "html"] = Depends(content_format),
     ) -> DailyBriefingResponse | HTMLResponse:
         response = load_content(content_store.daily_briefing)
@@ -108,7 +119,7 @@ def build_content_router(
 
     @router.get("/v1/content/projects", response_model=ProjectCatalogResponse, responses=HTML_RESPONSE)
     def get_project_catalog(
-        _: str = Depends(content_reader),
+        _: str = Depends(briefing_reader),
         format: Literal["json", "html"] = Depends(content_format),
     ) -> ProjectCatalogResponse | HTMLResponse:
         response = load_content(content_store.project_catalog)
@@ -117,7 +128,7 @@ def build_content_router(
     @router.get("/v1/content/projects/{project_id}/briefing", response_model=ProjectBriefingResponse, responses=HTML_RESPONSE)
     def get_project_briefing(
         project_id: str = APIPath(pattern=r"^[a-z0-9][a-z0-9-]{0,63}$"),
-        _: str = Depends(content_reader),
+        _: str = Depends(briefing_reader),
         format: Literal["json", "html"] = Depends(content_format),
     ) -> ProjectBriefingResponse | HTMLResponse:
         response = load_content(lambda: content_store.project_briefing(project_id))
@@ -126,7 +137,7 @@ def build_content_router(
     @router.get("/v1/content/services/maintenance", response_model=ServiceMaintenanceResponse, responses=HTML_RESPONSE)
     def get_service_maintenance(
         scope: Literal["due", "overdue", "upcoming", "all"] = "due",
-        _: str = Depends(content_reader),
+        _: str = Depends(briefing_reader),
         format: Literal["json", "html"] = Depends(content_format),
     ) -> ServiceMaintenanceResponse | HTMLResponse:
         response = load_content(content_store.service_maintenance).model_copy(deep=True)
@@ -140,6 +151,19 @@ def build_content_router(
 
     @router.get("/v1/content/status", response_model=ContentStatusResponse)
     def get_content_status(_: str = Depends(content_reader)) -> ContentStatusResponse:
-        return content_store.status()
+        response = content_store.status()
+        if not extensions.is_installed("briefing"):
+            briefing_types = {
+                "daily_briefing",
+                "project_catalog",
+                "project_briefing",
+                "service_maintenance",
+            }
+            response.content = {
+                content_type: item
+                for content_type, item in response.content.items()
+                if content_type not in briefing_types
+            }
+        return response
 
     return router
