@@ -34,10 +34,12 @@ COPY vault-template /opt/aps/vault-template
 RUN pip install --no-cache-dir . \
     && python3 -m pip uninstall --yes pip setuptools \
     && mkdir -p /vault /data/jobs /data/artifacts /data/work /data/extensions /config /git-auth/.ssh \
-    && chown -R aps:aps /app /opt/aps /vault /data /config /git-auth \
+    && chown -R aps:aps /vault /data /config /git-auth \
     && chmod 700 /git-auth /git-auth/.ssh
 
 USER aps
 EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD ["python3", "-c", "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('APS_HTTP_PORT', '8080') + '/health/live', timeout=3).close()"]
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["python3", "-m", "aps_server.bootstrap"]

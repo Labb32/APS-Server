@@ -179,8 +179,6 @@ class IdeaService:
         if record is not None:
             if not isinstance(record, dict) or record.get("idea_id") != path.stem:
                 raise IdeaCatalogError(f"{path.name}: intake metadata is invalid")
-            if record.get("legacy_frontmatter") is True:
-                content = _markdown_body(path, self.vault.root)
             return record, content
         title, summary = _preview(content)
         modified = datetime.fromtimestamp(path.stat().st_mtime, UTC).isoformat()
@@ -243,25 +241,11 @@ class IdeaService:
                     )
                 )
                 continue
-            record = state["records"].get(path.stem)
-            if record is not None:
-                raw_record, content = self._raw_record(path, state)
-                ideas.append(self._record_item(raw_record, content))
-                continue
-            try:
-                metadata = _frontmatter(path, self.vault.root)
-            except IdeaCatalogError:
-                raw_record, content = self._raw_record(path, state)
-                ideas.append(self._record_item(raw_record, content))
-                continue
-            if metadata.get("type") != "idea":
-                raise IdeaCatalogError(f"{path.name}: type must be idea")
-            ideas.append(self._idea_from_metadata(metadata, "inbox").model_copy(update={"content": _markdown_body(path, self.vault.root)}))
+            raw_record, content = self._raw_record(path, state)
+            ideas.append(self._record_item(raw_record, content))
         return IdeasData(ideas=ideas, idea_sets=idea_sets)
 
     def overlay(self, committed: IdeasData) -> IdeasData:
-        # API reads include uncurated local intake without putting Inbox files
-        # into Git or pretending they are committed records.
         pending = self.pending()
         ideas = {item.idea_id: item for item in committed.ideas}
         ideas.update({item.idea_id: item for item in pending.ideas})
@@ -303,19 +287,6 @@ class IdeaService:
                         current_record, current_content = self._raw_record(pending_path, state)
                         return self._record_item(current_record, current_content)
                     raise IdeaServiceError("Idempotent Idea record has no source document", "IDEA_WRITE_FAILED")
-                for directory, storage in ((self.inbox, "inbox"), (self.vault.root / IDEA_DIRECTORY, "vault")):
-                    if not directory.is_dir():
-                        continue
-                    for path in directory.glob("*.md"):
-                        try:
-                            metadata = _frontmatter(path, self.vault.root)
-                        except IdeaCatalogError:
-                            continue
-                        if metadata.get("intake_key_hash") != key_hash:
-                            continue
-                        if metadata.get("intake_request_hash") != request_hash:
-                            raise IdeaServiceError("Idempotency-Key belongs to a different Idea request", "IDEMPOTENCY_KEY_REUSED")
-                        return self._idea_from_metadata(metadata, storage).model_copy(update={"content": _markdown_body(path, self.vault.root)})
             item = IdeaItem(
                 idea_id=_id("idea_"), title=title, keywords=request.keywords,
                 summary=summary, status="inbox", idea_set_ids=[], updated_at=now,
@@ -388,33 +359,8 @@ class IdeaService:
                 raise IdeaServiceError("Idea not found", "IDEA_NOT_FOUND")
             path = pending_path
             state = self._load_state()
-            record = state["records"].get(idea_id)
-            if record is not None:
-                record, body = self._raw_record(path, state)
-                current = self._record_item(record, body)
-            else:
-                try:
-                    metadata = _frontmatter(path, self.vault.root)
-                    body = _markdown_body(path, self.vault.root)
-                    current = self._idea_from_metadata(metadata, "inbox").model_copy(update={"content": body})
-                    record = {
-                        "idea_id": current.idea_id,
-                        "title": current.title,
-                        "keywords": current.keywords,
-                        "summary": current.summary,
-                        "status": "inbox",
-                        "idea_set_ids": current.idea_set_ids,
-                        "created_at": str(metadata.get("created_at") or current.updated_at.isoformat()),
-                        "updated_at": current.updated_at.isoformat(),
-                        "content_sha256": _content_hash(body),
-                        "merge_source_idea_ids": metadata.get("merge_source_idea_ids") or [],
-                        "intake_key_hash": metadata.get("intake_key_hash"),
-                        "intake_request_hash": metadata.get("intake_request_hash"),
-                        "legacy_frontmatter": True,
-                    }
-                except IdeaCatalogError:
-                    record, body = self._raw_record(path, state)
-                    current = self._record_item(record, body)
+            record, body = self._raw_record(path, state)
+            current = self._record_item(record, body)
             changes = request.model_dump(exclude_unset=True)
             updated = current.model_copy(update={**changes, "updated_at": datetime.now(UTC)})
             if updated.status != "inbox":
@@ -465,14 +411,7 @@ class IdeaService:
             source_data: dict[str, tuple[dict[str, Any], str, Path]] = {}
             for item in pending.ideas:
                 source = self.inbox / f"{item.idea_id}.md"
-                record = state["records"].get(item.idea_id)
-                if record is not None:
-                    metadata, body = self._raw_record(source, state)
-                else:
-                    try:
-                        metadata, body = _frontmatter(source, self.vault.root), _markdown_body(source, self.vault.root)
-                    except IdeaCatalogError:
-                        metadata, body = self._raw_record(source, state)
+                metadata, body = self._raw_record(source, state)
                 source_data[item.idea_id] = (metadata, body, source)
             published_targets: dict[str, str] = {}
             try:

@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import json
 import secrets
 import threading
 from pathlib import Path
-from typing import Any
 
 from .atomic import write_text
 from .models import CreateJobRequest, ErrorDetail, Job, JobStatus, StoredJob
@@ -18,22 +16,7 @@ class JobStore:
 
     @staticmethod
     def _load(path: Path) -> StoredJob:
-        raw_value: Any = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(raw_value, dict):
-            raise ValueError("stored Job must be a JSON object")
-        raw: dict[str, Any] = raw_value
-        request = raw.get("request")
-        if isinstance(request, dict):
-            operation = request.get("operation")
-            inputs = request.get("input")
-            context = request.get("context")
-            if isinstance(inputs, dict) and operation in {"briefing.daily", "briefing.project"}:
-                inputs.pop("format", None)
-            if isinstance(context, dict):
-                context.pop("include_services", None)
-                if operation != "briefing.project" and context.get("project_ids") == []:
-                    context.pop("project_ids")
-        return StoredJob.model_validate(raw)
+        return StoredJob.model_validate_json(path.read_text(encoding="utf-8"))
 
     def create(self, request: CreateJobRequest, role: str, created_at, idempotency_key: str | None = None) -> StoredJob:
         job_id = "job_" + secrets.token_hex(13).upper()

@@ -20,16 +20,16 @@ class JobRunner:
     def __init__(
         self,
         settings: Settings,
-        store: JobStore,
+        job_store: JobStore,
         content_store: ContentStore,
         vault: VaultRepository,
-        operations: OperationRegistry,
+        operation_registry: OperationRegistry,
     ) -> None:
         self.settings = settings
-        self.store = store
+        self.job_store = job_store
         self.content_store = content_store
         self.vault = vault
-        self.operations = operations
+        self.operation_registry = operation_registry
         self.queue: queue.Queue[str] = queue.Queue(maxsize=settings.job_queue_size)
         self._workers: list[threading.Thread] = []
         self._known: set[str] = set()
@@ -50,7 +50,7 @@ class JobRunner:
             )
             worker.start()
             self._workers.append(worker)
-        for job_id in self.store.recover(datetime.now(UTC)):
+        for job_id in self.job_store.recover(datetime.now(UTC)):
             self.submit(job_id)
 
     def submit(self, job_id: str) -> None:
@@ -100,27 +100,27 @@ class JobRunner:
                 self.queue.task_done()
 
     def _run(self, job_id: str) -> None:
-        stored = self.store.get(job_id)
+        stored = self.job_store.get(job_id)
         if stored.public.status == JobStatus.CANCELLED:
             return
         try:
             stored.public.started_at = datetime.now(UTC)
-            spec = self.operations.get(stored.request.operation)
-            self.operations.require_available(spec)
+            spec = self.operation_registry.get(stored.request.operation)
+            self.operation_registry.require_available(spec)
             if self.settings.sync_before_job:
                 stored.public.status = JobStatus.SYNCING
-                self.store.save(stored)
+                self.job_store.save(stored)
                 stored.public.vault_commit = self.vault.sync()
             else:
                 stored.public.vault_commit = self.vault.commit() if (self.vault.root / ".git").exists() else "unversioned-test-vault"
 
             stored.public.status = JobStatus.RUNNING
-            self.store.save(stored)
-            operation_result = self.operations.execute(stored.request)
+            self.job_store.save(stored)
+            operation_result = self.operation_registry.execute(stored.request)
             if operation_result.vault_commit is not None:
                 stored.public.vault_commit = operation_result.vault_commit
             stored.public.status = JobStatus.VALIDATING
-            self.store.save(stored)
+            self.job_store.save(stored)
             if stored.public.vault_commit is None:
                 raise OperationError("operation has no Vault snapshot", "VAULT_COMMIT_MISSING")
             publications = (
@@ -130,7 +130,7 @@ class JobRunner:
             )
             if publications:
                 stored.public.status = JobStatus.PUBLISHING
-                self.store.save(stored)
+                self.job_store.save(stored)
                 self.content_store.publish(publications)
                 primary = publications[0]
                 stored.public.result = {
@@ -167,4 +167,4 @@ class JobRunner:
             )
         finally:
             stored.public.finished_at = datetime.now(UTC)
-            self.store.save(stored)
+            self.job_store.save(stored)
